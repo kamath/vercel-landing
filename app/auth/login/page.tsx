@@ -7,7 +7,7 @@ const redirect_uri = process.env.SPOTIFY_REDIRECT_URI!;
 
 export default async function Login() {
   const scope =
-    "user-top-read user-read-recently-played playlist-modify-public";
+    "user-top-read user-read-recently-played playlist-modify-public user-read-recently-played";
   const state = Math.random().toString(36).substring(2, 15);
 
   const params = new URLSearchParams({

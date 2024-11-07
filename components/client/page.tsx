@@ -4,13 +4,16 @@ import { ArtistCard, TrackCard } from "./spotify/artist";
 import Image from "next/image";
 import { Artist, Track } from "@spotify/web-api-ts-sdk";
 import { createContext, useEffect, useRef, useState } from "react";
-import { getTopTracks } from "@/lib/spotify";
+import { getRecentlyPlayed, getTopTracks } from "@/lib/spotify";
 import { getTopArtists } from "@/lib/spotify";
 import { PinterestScroll } from "./pinterestScroll";
 import { motion } from "framer-motion";
 import Music from "./spotify/music";
 import { MotionValue, useScroll, useTransform } from "framer-motion";
 import AnimateHorizontalScroll from "./animateHorizontal";
+import { EB_Garamond } from "next/font/google";
+
+const ebGaramond = EB_Garamond({ subsets: ["latin"] });
 
 const food = [
   "01_malai_kofta.JPG",
@@ -36,6 +39,9 @@ function ScrollableSection({
 }) {
   const [topTracks, setTopTracks] = useState<Track[]>([]);
   const [topArtists, setTopArtists] = useState<Artist[]>([]);
+  const [recentlyPlayed, setRecentlyPlayed] = useState<
+    { track: Track; played_at: Date }[]
+  >([]);
   const [currentDate, setCurrentDate] = useState<string>("");
 
   const { scrollYProgress } = useScroll({
@@ -46,16 +52,7 @@ function ScrollableSection({
   useEffect(() => {
     getTopTracks().then(setTopTracks);
     getTopArtists().then(setTopArtists);
-    setCurrentDate(
-      new Date().toLocaleDateString("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-        hour: "numeric",
-        minute: "numeric",
-        hour12: true,
-      })
-    );
+    getRecentlyPlayed().then(setRecentlyPlayed);
   }, []);
 
   const showBanner = useTransform(scrollYProgress, [0, 0.1], [0, 1]);
@@ -85,20 +82,48 @@ function ScrollableSection({
               ))}
             </AnimateHorizontalScroll>
           </div>
-          {topTracks.length > 0 && (
+          {recentlyPlayed.length > 0 && (
             <motion.div
               className="absolute inset-0 bg-gradient-to-b from-black to-transparent flex items-center justify-center"
               style={{ opacity: showBanner }}
             >
               <div className="flex flex-col gap-4 text-gray-100">
                 <div className="flex items-center justify-center gap-4">
-                  <div className="w-5 h-5">
-                    <Music />
+                  <div className="w-20 h-20 relative">
+                    <div className="absolute inset-0">
+                      <Image
+                        src={recentlyPlayed[0].track.album.images[0].url}
+                        alt={recentlyPlayed[0].track.name}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                    <div className="relative bg-black/50 z-10 w-full h-full flex items-center justify-center">
+                      <div className="w-5 h-5">
+                        <Music />
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <h1 className="text-xl font-bold">{topTracks[0].name}</h1>
-                    <h5 className="text-sm">{topTracks[0].artists[0].name}</h5>
-                    <h5 className="text-sm">{currentDate}</h5>
+                  <div className="flex flex-col gap-2">
+                    <h3 className="text-sm">Last Played:</h3>
+                    <div>
+                      <h1 className="text-xl font-bold">
+                        {recentlyPlayed[0].track.name.toUpperCase()}
+                      </h1>
+                      <h5 className="text-sm">
+                        {recentlyPlayed[0].track.artists[0].name}
+                      </h5>
+                    </div>
+                    <h5 className="text-xs">
+                      {recentlyPlayed[0].played_at.toLocaleDateString("en-US", {
+                        month: "long",
+                        day: "numeric",
+                        year: "numeric",
+                        hour: "numeric",
+                        minute: "numeric",
+                        hour12: true,
+                      })}
+                    </h5>
                   </div>
                 </div>
               </div>

@@ -1,5 +1,10 @@
 "use server";
-import type { Artist, Page, Track } from "@spotify/web-api-ts-sdk";
+import type {
+  Artist,
+  Page,
+  PlaybackState,
+  Track,
+} from "@spotify/web-api-ts-sdk";
 
 export async function getAccessToken(
   code: string,
@@ -107,6 +112,31 @@ export async function getTopTracks(initAccessToken?: string): Promise<Track[]> {
     )
   );
   return topTracks;
+}
+
+export async function getRecentlyPlayed(
+  initAccessToken?: string
+): Promise<{ track: Track; played_at: Date }[]> {
+  const accessToken = initAccessToken || (await getRefreshToken()).access_token;
+
+  const response = await fetch(
+    "https://api.spotify.com/v1/me/player/recently-played?limit=10",
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+  const page: Page<{
+    track: Track;
+    played_at: string;
+    context: Record<string, unknown>;
+  }> = await response.json();
+  console.log("RECENTLY PLAYED", JSON.stringify(page, null, 2));
+  const recentlyPlayed: { track: Track; played_at: Date }[] = page.items.map(
+    (t) => ({ track: t.track, played_at: new Date(t.played_at) })
+  );
+  return recentlyPlayed;
 }
 
 export async function getRefreshToken(): Promise<{
