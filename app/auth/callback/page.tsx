@@ -1,10 +1,10 @@
 "use client";
 
-import { getAccessToken } from "@/app/api/spotify/route";
+import { getAccessToken } from "@/lib/spotify";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 
-export default function Callback() {
+function CallbackWithSearchParams() {
   const searchParams = useSearchParams();
   const [data, setData] = useState<Record<string, unknown>>({});
 
@@ -15,4 +15,12 @@ export default function Callback() {
   }, [searchParams]);
 
   return <div>{JSON.stringify(data)}</div>;
+}
+
+export default function Callback() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <CallbackWithSearchParams />
+    </Suspense>
+  );
 }

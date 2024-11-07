@@ -13,9 +13,7 @@ export function ArtistCard({ artist }: { artist: Artist }) {
           fill
           className=" object-cover"
         />
-        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-          {/* <h1 className="text-sm font-bold text-white">{artist.name}</h1> */}
-        </div>
+        <div className="absolute inset-0 bg-black/50 flex items-center justify-center"></div>
       </div>
     </div>
   );
@@ -31,11 +29,7 @@ export function TrackCard({ track }: { track: Track }) {
           fill
           className="object-cover"
         />
-        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-          <h1 className="text-sm text-center font-bold text-white">
-            {/* {track.name} */}
-          </h1>
-        </div>
+        <div className="absolute inset-0 bg-black/50 flex items-center justify-center"></div>
       </div>
     </div>
   );
