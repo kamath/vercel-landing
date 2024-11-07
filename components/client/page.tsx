@@ -34,8 +34,8 @@ export default function Page() {
       className="w-screen md:w-full h-screen md:h-full overflow-auto bg-gray-100"
       ref={motionDivRef}
     >
-      <div className="w-full py-12 overflow-y-auto">
-        <div className="flex items-center gap-4 px-8">
+      <div className="w-full overflow-y-auto">
+        <div className="flex items-center gap-4 px-8 pt-9 pb-4 bg-black text-gray-100">
           <Image src="/me.png" alt="me" width={100} height={100} />
           <div className="flex flex-col">
             <h1 className="text-2xl font-bold">👋 I&apos;m Anirudh</h1>
