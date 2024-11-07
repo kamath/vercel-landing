@@ -7,6 +7,7 @@ import { Artist, Track } from "@spotify/web-api-ts-sdk";
 import { useEffect, useRef, useState } from "react";
 import { getTopTracks } from "@/lib/spotify";
 import { getTopArtists } from "@/lib/spotify";
+import { PinterestScroll } from "./pinterestScroll";
 
 const food = [
   "01_malai_kofta.JPG",
@@ -59,46 +60,7 @@ export default function Page() {
           )}
         </div>
         <div className="p-4 flex items-center justify-center w-full">
-          <div className="flex justify-center overflow-hidden w-full gap-4">
-            <div className="flex flex-col gap-4">
-              {food
-                .filter((_, index) => index % 2 === 0)
-                .map((item: string, index: number) => (
-                  <div
-                    className="flex flex-col items-center gap-4 min-w-[150px]"
-                    key={index}
-                  >
-                    <div className="relative flex items-center justify-center aspect-square w-full bg-gray-200  overflow-hidden">
-                      <Image
-                        src={`/img/food/${item}`}
-                        alt="food"
-                        fill
-                        className="rounded-lg object-cover"
-                      />
-                    </div>
-                  </div>
-                ))}
-            </div>
-            <div className="flex flex-col gap-4 mt-6">
-              {food
-                .filter((_, index) => index % 2 === 1)
-                .map((item: string, index: number) => (
-                  <div
-                    className="flex flex-col items-center gap-4 min-w-[150px]"
-                    key={index}
-                  >
-                    <div className="relative flex items-center justify-center aspect-square w-full bg-gray-200  overflow-hidden">
-                      <Image
-                        src={`/img/food/${item}`}
-                        alt="food"
-                        fill
-                        className="rounded-lg object-cover"
-                      />
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </div>
+          <PinterestScroll food={food} containerRef={motionDivRef} />
         </div>
       </div>
     </div>
