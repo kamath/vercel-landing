@@ -37,7 +37,7 @@ export function PinterestScroll({
             </div>
           ))}
       </motion.div>
-      <motion.div className="flex flex-col gap-4 mt-12">
+      <motion.div className="flex flex-col gap-4 mt-8">
         {food
           .filter((_, index) => index % 2 === 1)
           .map((item: string, index: number) => (

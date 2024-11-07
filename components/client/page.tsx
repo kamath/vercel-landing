@@ -60,7 +60,9 @@ export default function Page() {
           )}
         </div>
         <div className="p-4 flex items-center justify-center w-full">
-          <PinterestScroll food={food} containerRef={motionDivRef} />
+          {motionDivRef.current && (
+            <PinterestScroll food={food} containerRef={motionDivRef} />
+          )}
         </div>
       </div>
     </div>
