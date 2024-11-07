@@ -14,11 +14,13 @@ export function PinterestScroll({
     offset: ["start start", "end start"],
   });
 
-  const scrollY = useTransform(scrollYProgress, [0, 1], [0, -100]);
+  const scrollY = useTransform(scrollYProgress, [0, 1], [0, -100], {
+    clamp: false,
+  });
 
   return (
     <div className="flex justify-center overflow-hidden w-full gap-4">
-      <motion.div className="flex flex-col gap-4 mt-6" style={{ y: scrollY }}>
+      <motion.div className="flex flex-col gap-4 mt-12" style={{ y: scrollY }}>
         {food
           .filter((_, index) => index % 2 === 0)
           .map((item: string, index: number) => (

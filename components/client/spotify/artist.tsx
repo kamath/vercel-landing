@@ -13,7 +13,9 @@ export function ArtistCard({ artist }: { artist: Artist }) {
           fill
           className=" object-cover"
         />
-        <div className="absolute inset-0 bg-black/50 flex items-center justify-center"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent flex items-center justify-center"></div>
+        <div className="absolute inset-0 bg-gradient-to-l from-black/60 to-transparent flex items-center justify-center"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 to-white flex items-center justify-center"></div>
       </div>
     </div>
   );
@@ -29,7 +31,9 @@ export function TrackCard({ track }: { track: Track }) {
           fill
           className="object-cover"
         />
-        <div className="absolute inset-0 bg-black/50 flex items-center justify-center"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent flex items-center justify-center"></div>
+        <div className="absolute inset-0 bg-gradient-to-l from-black/60 to-transparent flex items-center justify-center"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-transparent flex items-center justify-center"></div>
       </div>
     </div>
   );

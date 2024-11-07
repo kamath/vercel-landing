@@ -57,6 +57,22 @@ export async function getTopArtists(
   );
   const page: Page<Artist> = await response.json();
   const topArtists: Artist[] = page.items;
+  console.log(
+    "ARTISTS",
+    JSON.stringify(
+      topArtists
+        .sort((a, b) => a.popularity - b.popularity)
+        .map((t) => {
+          return {
+            name: t.name,
+            popularity: t.popularity,
+          };
+        })
+        .reverse(),
+      null,
+      2
+    )
+  );
   return topArtists;
 }
 
@@ -64,7 +80,7 @@ export async function getTopTracks(initAccessToken?: string): Promise<Track[]> {
   const accessToken = initAccessToken || (await getRefreshToken()).access_token;
 
   const response = await fetch(
-    "https://api.spotify.com/v1/me/top/tracks?time_range=short_term&limit=5",
+    "https://api.spotify.com/v1/me/top/tracks?time_range=short_term&limit=10",
     {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -73,6 +89,23 @@ export async function getTopTracks(initAccessToken?: string): Promise<Track[]> {
   );
   const page: Page<Track> = await response.json();
   const topTracks: Track[] = page.items;
+  const suggestion = topTracks
+    .sort((a, b) => a.popularity - b.popularity)
+    .reverse();
+  console.log(
+    "SUGGESTIONS",
+    JSON.stringify(
+      suggestion.map((t) => {
+        return {
+          name: t.name,
+          popularity: t.popularity,
+          artists: t.artists.map((a) => a.name),
+        };
+      }),
+      null,
+      2
+    )
+  );
   return topTracks;
 }
 

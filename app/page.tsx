@@ -5,12 +5,12 @@ import Page from "@/components/client/page";
 
 export default async function Home() {
   return (
-    <div className="h-screen w-screen flex items-center justify-center">
-      <div className="relative">
-        <Iphone15Pro className="size-full md:block hidden">
+    <div className="h-screen w-screen flex items-center justify-center bg-gray-100 overflow-hidden">
+      <div className="relative overflow-hidden">
+        <Iphone15Pro className="size-full md:block hidden overflow-hidden">
           <Page />
         </Iphone15Pro>
-        <div className="md:hidden block w-full h-full">
+        <div className="md:hidden block w-screen h-screen overflow-hidden">
           <Page />
         </div>
       </div>
