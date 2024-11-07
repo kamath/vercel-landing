@@ -6,7 +6,8 @@ const client_id = process.env.SPOTIFY_CLIENT_ID!;
 const redirect_uri = process.env.SPOTIFY_REDIRECT_URI!;
 
 export default async function Login() {
-  const scope = "user-read-private user-read-email";
+  const scope =
+    "user-top-read user-read-recently-played playlist-modify-public";
   const state = Math.random().toString(36).substring(2, 15);
 
   const params = new URLSearchParams({

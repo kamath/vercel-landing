@@ -1,17 +1,17 @@
 "use client";
-import { motion } from "framer-motion";
+import { motion, useTransform, useViewportScroll } from "framer-motion";
 
 export default function MotionDiv() {
+  const { scrollYProgress } = useViewportScroll();
+  const scale = useTransform(scrollYProgress, [0, 1], [0.2, 2]);
+
   return (
-    <motion.div
-      className="w-full h-full bg-blue-500"
-      initial={{ scale: 0 }}
-      animate={{ rotate: 180, scale: 1 }}
-      transition={{
-        type: "spring",
-        stiffness: 260,
-        damping: 20,
-      }}
-    />
+    <motion.div style={{ scale }}>
+      <motion.div
+        style={{
+          scaleY: scrollYProgress,
+        }}
+      />
+    </motion.div>
   );
 }
