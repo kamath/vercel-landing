@@ -11,17 +11,42 @@ import { motion } from "framer-motion";
 import Music from "./spotify/music";
 import { MotionValue, useScroll, useTransform } from "framer-motion";
 import AnimateHorizontalScroll from "./animateHorizontal";
-import { EB_Garamond } from "next/font/google";
-
-const ebGaramond = EB_Garamond({ subsets: ["latin"] });
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faInstagram } from "@fortawesome/free-brands-svg-icons";
 
 const food = [
-  "01_malai_kofta.JPG",
-  "02_rasgulla.jpg",
-  "03_salmon_tartare.jpg",
-  "04_pasta.jpg",
-  "05_tg.jpg",
-  "06_rava_dosa.jpg",
+  {
+    title: "Pasta Pomodoro",
+    description: "Fresh pasta with tomato sauce, basil and parmesan",
+    image: "pasta.jpg",
+  },
+  {
+    title: "Malai Kofta",
+    description:
+      "Velvety potato-paneer dumplings, simmered in a rich, spiced cream gravy.",
+    image: "malai_kofta.JPG",
+  },
+  {
+    title: "Rasgulla",
+    description:
+      "Handmade spongy paneer, infused with a cardamom rose syrup and topped with saffron.",
+    image: "rasgulla.jpg",
+  },
+  {
+    title: "Salmon Tartare",
+    description: "Raw salmon with avocado, capers and citrus",
+    image: "salmon_tartare.jpg",
+  },
+  {
+    title: "Tandoori Grilled",
+    description: "Spiced and grilled meat from the tandoor",
+    image: "tg.jpg",
+  },
+  {
+    title: "Rava Dosa",
+    description: "Crispy traditional South Indian semolina crepe",
+    image: "rava_dosa.jpg",
+  },
 ];
 
 interface ScrollContextType {
@@ -42,7 +67,6 @@ function ScrollableSection({
   const [recentlyPlayed, setRecentlyPlayed] = useState<
     { track: Track; played_at: Date }[]
   >([]);
-  const [currentDate, setCurrentDate] = useState<string>("");
 
   const { scrollYProgress } = useScroll({
     container: motionDivRef,
@@ -132,8 +156,23 @@ function ScrollableSection({
         </div>
 
         <div className="p-4 flex items-center justify-center w-full overflow-hidden bg-white">
-          <PinterestScroll food={food} />
+          <div className="flex flex-col gap-4">
+            <PinterestScroll food={food} />
+            <div className="flex justify-center">
+              <a
+                href="https://www.instagram.com/currychefwiththepot/"
+                target="_blank"
+              >
+                <button className="bg-black text-white px-6 py-3 rounded-full flex justify-center items-center gap-2 w-fit">
+                  <FontAwesomeIcon icon={faInstagram} />
+                  <h5 className="text-sm">currychefwiththepot</h5>
+                </button>
+              </a>
+            </div>
+          </div>
         </div>
+
+        <div className="h-[1000px] bg-black"></div>
       </div>
     </ScrollContext.Provider>
   );

@@ -1,10 +1,5 @@
 "use server";
-import type {
-  Artist,
-  Page,
-  PlaybackState,
-  Track,
-} from "@spotify/web-api-ts-sdk";
+import type { Artist, Page, Track } from "@spotify/web-api-ts-sdk";
 
 export async function getAccessToken(
   code: string,
