@@ -1,19 +1,16 @@
 "use client";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion, useTransform } from "framer-motion";
+import { useContext } from "react";
+import { ScrollContext } from "./page";
 
-export default function MotionDiv({
+export default function AnimateHorizontalScroll({
   children,
-  containerRef,
   scroll,
 }: {
   children: React.ReactNode;
-  containerRef: React.RefObject<HTMLDivElement>;
   scroll: [number, number];
 }) {
-  const { scrollYProgress } = useScroll({
-    container: containerRef,
-    offset: ["start start", "end start"],
-  });
+  const { scrollYProgress } = useContext(ScrollContext);
 
   const scrollX = useTransform(scrollYProgress, [0, 1], scroll);
 
