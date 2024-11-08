@@ -13,7 +13,8 @@ import { MotionValue, useScroll, useTransform } from "framer-motion";
 import AnimateHorizontalScroll from "./animateHorizontal";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faInstagram } from "@fortawesome/free-brands-svg-icons";
-import { faHeart } from "@fortawesome/free-solid-svg-icons";
+import { ScrollArea } from "@radix-ui/react-scroll-area";
+import { ScrollBar } from "../ui/scroll-area";
 
 const food = [
   {
@@ -52,34 +53,68 @@ const food = [
 
 const workExperience = [
   {
-    company: "Company 1",
-    role: "Role 1",
+    company: "Browserbase",
+    role: "Engineer #5",
+    description: "AI Grant Batch 3",
     duration: "Duration 1",
     image: "/img/brands/browserbase.svg",
+    link: "https://browserbase.com",
   },
   {
-    company: "Company 2",
-    role: "Role 2",
+    company: "Miracle",
+    role: "Founding Engineer",
+    description: "YC W23",
     duration: "Duration 2",
-    image: "/img/brands/browserbase.svg",
+    image: "/img/brands/miracle.jpg",
+    link: "https://miracleml.com",
   },
   {
-    company: "Company 3",
-    role: "Role 3",
+    company: "Whatnot",
+    role: "Founding ML Scientist",
+    description: "YC W20, a16z",
     duration: "Duration 3",
-    image: "/img/brands/browserbase.svg",
+    image: "/img/brands/whatnot.jpg",
+    link: "https://whatnot.com",
   },
   {
-    company: "Company 4",
-    role: "Role 4",
+    company: "Crowdstrike",
+    role: "SWE Intern",
+    description: "R&D/Intelligence",
     duration: "Duration 4",
-    image: "/img/brands/browserbase.svg",
+    image: "/img/brands/crowdstrike.jpg",
+    link: "https://crowdstrike.com",
   },
   {
-    company: "Company 5",
-    role: "Role 5",
+    company: "Neo4j",
+    role: "SWE Intern",
+    description: "",
     duration: "Duration 5",
-    image: "/img/brands/browserbase.svg",
+    image: "/img/brands/neo4j.jpg",
+    link: "https://neo4j.com",
+  },
+  {
+    company: "Apple",
+    role: "SWE Intern",
+    description: "Apple Health",
+    duration: "Duration 6",
+    image: "/img/brands/apple.png",
+    link: "https://apple.com",
+  },
+  {
+    company: "BCG",
+    role: "Marketing Intern",
+    description: "NAMR Marketing",
+    duration: "Duration 7",
+    image: "/img/brands/bcg.jpg",
+    link: "https://bcg.com",
+  },
+  {
+    company: "StockX",
+    role: "Data Science Intern",
+    description: "",
+    duration: "Duration 8",
+    image: "/img/brands/stockx.jpg",
+    link: "https://stockx.com",
   },
 ];
 
@@ -209,7 +244,7 @@ function ScrollableSection({
         <div className="flex flex-col gap-4">
           <div className="flex w-full h-[160px]">
             <AnimateHorizontalScroll window={[0.1, 1]} scroll={[0, -300]}>
-              <div className="relative w-[200vw] md:w-[700px] aspect-video">
+              <div className="relative w-[700px] aspect-video">
                 <Image
                   src="/img/sf.jpg"
                   alt="map"
@@ -221,17 +256,10 @@ function ScrollableSection({
             </AnimateHorizontalScroll>
           </div>
           <div className="text-white px-8">
-            <h1 className="text-2xl w-full">
-              <div className="flex items-center flex-wrap gap-2">
-                <span className="whitespace-nowrap">With</span>
-                <FontAwesomeIcon icon={faHeart} />
-                <span className="whitespace-nowrap">from San Francisco</span>
-              </div>
-            </h1>
-            <div className="flex gap-4 overflow-x-auto pb-4">
+            <ScrollArea className="flex gap-4 overflow-x-auto pb-4 w-full">
               {workExperience.map((item, index) => (
                 <div className="flex flex-col gap-2" key={index}>
-                  <div className="relative w-[130px] shrink-0 aspect-square">
+                  <div className="relative w-[130px] shrink-0 aspect-square rounded-lg overflow-hidden">
                     <Image
                       src={item.image}
                       alt={item.company}
@@ -243,11 +271,18 @@ function ScrollableSection({
                     <h3 className="text-sm font-bold">
                       {item.company.toUpperCase()}
                     </h3>
-                    <h5 className="text-xs">{item.role}</h5>
+                    <div className="flex gap-1">
+                      <h5 className="text-xs">
+                        {item.role}
+                        <br />
+                        {item.description}
+                      </h5>
+                    </div>
                   </div>
                 </div>
               ))}
-            </div>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
           </div>
         </div>
 
