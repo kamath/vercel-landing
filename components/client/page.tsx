@@ -119,6 +119,45 @@ const workExperience = [
   },
 ];
 
+const images = [
+  {
+    name: "bodega",
+    image: "bodega.jpg",
+  },
+  {
+    name: "davenport_landing",
+    image: "davenport_landing.jpg",
+  },
+  {
+    name: "half_dome",
+    image: "half_dome.jpg",
+  },
+  {
+    name: "mill_valley",
+    image: "mill_valley.jpg",
+  },
+  {
+    name: "point_reyes",
+    image: "point_reyes.jpg",
+  },
+  {
+    name: "sausalito",
+    image: "sausalito.jpg",
+  },
+  {
+    name: "sequoia",
+    image: "sequoia.jpg",
+  },
+  {
+    name: "sf_dance",
+    image: "sf_dance.jpg",
+  },
+  {
+    name: "twin_peaks",
+    image: "twin_peaks.jpg",
+  },
+];
+
 interface ScrollContextType {
   scrollYProgress: MotionValue<number>;
 }
@@ -139,6 +178,53 @@ function SpotifyLoadingImage({
         includeGradient && "bg-gradient-to-b from-black via-black to-white"
       )}
     ></div>
+  );
+}
+
+function ImageCard({
+  item,
+  index,
+}: {
+  item: { name: string; image: string };
+  index: number;
+}) {
+  const textComponent = (
+    <div className="flex flex-col gap-2 text-white">
+      <h3 className="text-sm font-bold">{item.name}</h3>
+    </div>
+  );
+  const imageComponent = (
+    <div
+      className="relative w-[200px] max-h-[300px] aspect-[2/3] rounded-lg overflow-hidden"
+      style={{
+        left:
+          index === 0
+            ? "0"
+            : `calc((100% - 200px) * ${index / (images.length - 1)})`,
+      }}
+    >
+      <div className="aspect-square rounded-lg overflow-hidden">
+        <Image
+          src={`/img/misc/${item.image}`}
+          alt={item.name}
+          fill
+          className="object-cover"
+        />
+      </div>
+    </div>
+  );
+  return (
+    <motion.div
+      className="flex items-center justify-between gap-4"
+      initial={{ opacity: 0 }}
+      whileInView={{ opacity: 1 }}
+      viewport={{
+        amount: 0.8,
+      }}
+    >
+      {imageComponent}
+      {textComponent}
+    </motion.div>
   );
 }
 
@@ -281,11 +367,17 @@ function ScrollableSection({
               </AnimateHorizontalScroll>
             </div>
             <div className="text-white mb-8">
-              <ScrollArea className="flex gap-4 overflow-x-auto pb-4 w-full">
+              <ScrollArea className="flex gap-4 overflow-x-auto pb-4 w-full pr-8">
                 {workExperience.map((item, index) => (
-                  <div
+                  <motion.div
                     className={cn("flex flex-col gap-2", index === 0 && "ml-8")}
                     key={index}
+                    initial={{ opacity: 0 }}
+                    whileInView={{ opacity: 1 }}
+                    viewport={{
+                      amount: 0.3,
+                    }}
+                    transition={{ delay: index <= 2 ? 0.1 * index : 0 }}
                   >
                     <div className="relative w-[130px] shrink-0 aspect-square rounded-lg overflow-hidden">
                       <Image
@@ -307,12 +399,18 @@ function ScrollableSection({
                         </h5>
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
                 <ScrollBar orientation="horizontal" />
               </ScrollArea>
             </div>
           </div>
+        </div>
+
+        <div className="flex flex-col gap-4">
+          {images.map((item, index) => (
+            <ImageCard item={item} key={index} index={index} />
+          ))}
         </div>
 
         <motion.div
