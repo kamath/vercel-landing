@@ -168,9 +168,8 @@ function ScrollableSection({
   return (
     <ScrollContext.Provider value={{ scrollYProgress }}>
       <div className="w-full overflow-hidden">
-        <div className="flex items-center gap-4 px-8 pt-12 pb-4 bg-black text-gray-100">
-          <Image src="/me.png" alt="me" width={75} height={75} />
-          <div className="flex flex-col">
+        <div className="flex items-center justify-end gap-4 px-8 pt-12 pb-4 bg-black text-gray-100">
+          <div className="flex flex-col text-right mt-8">
             <h1 className="text-2xl font-bold">&quot;LANDING PAGE&quot;</h1>
             <h5 className="text-sm">c/o ANIRUDH KAMATH</h5>
           </div>
@@ -266,56 +265,58 @@ function ScrollableSection({
           </div>
         </div>
 
-        <div className="flex flex-col gap-4">
-          <div className="flex w-full h-[150px]">
-            <AnimateHorizontalScroll window={[0.1, 1]} scroll={[0, -100]}>
-              <div className="relative w-[900px] max-h-[200px] aspect-video">
-                <Image
-                  src="/img/sf.jpg"
-                  alt="map"
-                  fill
-                  className="object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black" />
-              </div>
-            </AnimateHorizontalScroll>
-          </div>
-          <div className="text-white">
-            <ScrollArea className="flex gap-4 overflow-x-auto pb-4 w-full">
-              {workExperience.map((item, index) => (
-                <div
-                  className={cn("flex flex-col gap-2", index === 0 && "ml-8")}
-                  key={index}
-                >
-                  <div className="relative w-[130px] shrink-0 aspect-square rounded-lg overflow-hidden">
-                    <Image
-                      src={item.image}
-                      alt={item.company}
-                      fill
-                      className="object-contain"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <h3 className="text-sm font-bold">
-                      {item.company.toUpperCase()}
-                    </h3>
-                    <div className="flex gap-1">
-                      <h5 className="text-xs">
-                        {item.role}
-                        <br />
-                        {item.description}
-                      </h5>
+        <div className="bg-black">
+          <div className="flex flex-col gap-4 rounded-xl overflow-hidden">
+            <div className="flex w-full h-[150px] relative">
+              <AnimateHorizontalScroll window={[0.1, 1]} scroll={[0, -100]}>
+                <div className="relative w-[900px] max-h-[200px] aspect-video">
+                  <Image
+                    src="/img/sf.jpg"
+                    alt="map"
+                    fill
+                    className="object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black" />
+                </div>
+              </AnimateHorizontalScroll>
+            </div>
+            <div className="text-white mb-8">
+              <ScrollArea className="flex gap-4 overflow-x-auto pb-4 w-full">
+                {workExperience.map((item, index) => (
+                  <div
+                    className={cn("flex flex-col gap-2", index === 0 && "ml-8")}
+                    key={index}
+                  >
+                    <div className="relative w-[130px] shrink-0 aspect-square rounded-lg overflow-hidden">
+                      <Image
+                        src={item.image}
+                        alt={item.company}
+                        fill
+                        className="object-contain"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <h3 className="text-sm font-bold">
+                        {item.company.toUpperCase()}
+                      </h3>
+                      <div className="flex gap-1">
+                        <h5 className="text-xs">
+                          {item.role}
+                          <br />
+                          {item.description}
+                        </h5>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-              <ScrollBar orientation="horizontal" />
-            </ScrollArea>
+                ))}
+                <ScrollBar orientation="horizontal" />
+              </ScrollArea>
+            </div>
           </div>
         </div>
 
         <motion.div
-          className="h-[1000px] bg-black"
+          className="h-[1000px] bg-white"
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
         ></motion.div>
