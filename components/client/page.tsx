@@ -3,7 +3,7 @@
 import { ArtistCard, TrackCard } from "./spotify/artist";
 import Image from "next/image";
 import { Artist, Track } from "@spotify/web-api-ts-sdk";
-import { createContext, Suspense, useEffect, useRef, useState } from "react";
+import { createContext, useEffect, useRef, useState } from "react";
 import { getRecentlyPlayed, getTopTracks } from "@/lib/spotify";
 import { getTopArtists } from "@/lib/spotify";
 import { PinterestScroll } from "./pinterestScroll";
@@ -12,7 +12,12 @@ import Music from "./spotify/music";
 import { MotionValue, useScroll } from "framer-motion";
 import AnimateHorizontalScroll from "./animateHorizontal";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faInstagram } from "@fortawesome/free-brands-svg-icons";
+import {
+  faGithub,
+  faInstagram,
+  faLinkedin,
+  faTwitter,
+} from "@fortawesome/free-brands-svg-icons";
 import { ScrollArea } from "@radix-ui/react-scroll-area";
 import { ScrollBar } from "../ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -121,32 +126,16 @@ const workExperience = [
 
 const images = [
   {
-    name: "bodega",
-    image: "bodega.jpg",
-  },
-  {
-    name: "davenport_landing",
-    image: "davenport_landing.jpg",
+    name: "lego_sf",
+    image: "lego_sf.jpg",
   },
   {
     name: "half_dome",
     image: "half_dome.jpg",
   },
   {
-    name: "mill_valley",
-    image: "mill_valley.jpg",
-  },
-  {
     name: "point_reyes",
     image: "point_reyes.jpg",
-  },
-  {
-    name: "sausalito",
-    image: "sausalito.jpg",
-  },
-  {
-    name: "sequoia",
-    image: "sequoia.jpg",
   },
   {
     name: "sf_dance",
@@ -158,6 +147,25 @@ const images = [
   },
 ];
 
+const socials = [
+  {
+    icon: faInstagram,
+    link: "https://www.instagram.com/currychefwiththepot/",
+  },
+  {
+    icon: faGithub,
+    link: "https://github.com/kamath",
+  },
+  {
+    icon: faLinkedin,
+    link: "https://www.linkedin.com/in/anirudhk/",
+  },
+  {
+    icon: faTwitter,
+    link: "https://x.com/kamathematic",
+  },
+];
+
 interface ScrollContextType {
   scrollYProgress: MotionValue<number>;
 }
@@ -165,6 +173,15 @@ interface ScrollContextType {
 export const ScrollContext = createContext<ScrollContextType>({
   scrollYProgress: new MotionValue(),
 });
+
+function Loading() {
+  return (
+    <div className="flex gap-2 items-center justify-center h-full text-white font-bold text-2xl uppercase">
+      <div className="loader"></div>
+      Loading
+    </div>
+  );
+}
 
 function SpotifyLoadingImage({
   includeGradient = false,
@@ -188,11 +205,6 @@ function ImageCard({
   item: { name: string; image: string };
   index: number;
 }) {
-  const textComponent = (
-    <div className="flex flex-col gap-2 text-white">
-      <h3 className="text-sm font-bold">{item.name}</h3>
-    </div>
-  );
   const imageComponent = (
     <div
       className="relative w-[200px] max-h-[300px] aspect-[2/3] rounded-lg overflow-hidden"
@@ -223,7 +235,7 @@ function ImageCard({
       }}
     >
       {imageComponent}
-      {textComponent}
+      {/* {textComponent} */}
     </motion.div>
   );
 }
@@ -248,8 +260,6 @@ function ScrollableSection({
     getTopArtists().then(setTopArtists);
     getRecentlyPlayed().then(setRecentlyPlayed);
   }, []);
-
-  //   const showBanner = useTransform(scrollYProgress, [0, 0.05], [0, 1]);
 
   return (
     <ScrollContext.Provider value={{ scrollYProgress }}>
@@ -291,6 +301,9 @@ function ScrollableSection({
                 className="relative w-full h-full bg-gradient-to-b from-black to-transparent flex items-center justify-center"
                 initial={{ opacity: 0 }}
                 whileInView={{ opacity: 1 }}
+                viewport={{
+                  margin: "0px 0px -80% 0px",
+                }}
               >
                 <div className="flex flex-col gap-4 text-gray-100">
                   <div className="flex items-center justify-center gap-4">
@@ -382,8 +395,12 @@ function ScrollableSection({
                     whileInView={{ opacity: 1 }}
                     viewport={{
                       amount: 0.3,
+                      margin: "0px 0px -20% 0px",
                     }}
-                    transition={{ delay: index <= 2 ? 0.1 * index : 0 }}
+                    transition={{
+                      delay: index <= 2 ? 0.2 * index : 0,
+                      duration: 1,
+                    }}
                   >
                     <div className="relative w-[130px] shrink-0 aspect-square rounded-lg overflow-hidden">
                       <Image
@@ -418,6 +435,34 @@ function ScrollableSection({
             <ImageCard item={item} key={index} index={index} />
           ))}
         </div>
+
+        <div className="flex flex-col gap-2 bg-black py-16">
+          <div className="flex gap-2 items-end justify-center text-white text-xl uppercase">
+            <p className="font-bold">anirudh</p>{" "}
+            <p className="font-normal text-xs mb-[0.3rem]">@</p>{" "}
+            <p className="font-bold">kamath</p>{" "}
+            <p className="font-normal text-xs mb-[0.2rem]">.io</p>
+          </div>
+          <div className="flex gap-2 items-center justify-center text-white font-bold text-2xl uppercase">
+            {socials.map((item, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, marginTop: 20 }}
+                whileInView={{ opacity: 1, marginTop: 0 }}
+                transition={{ delay: 0.1 * index }}
+              >
+                <a href={item.link} target="_blank">
+                  <FontAwesomeIcon icon={item.icon} className="text-4xl" />
+                </a>
+              </motion.div>
+            ))}
+          </div>
+          <div className="flex items-center text-center justify-center text-white text-sm px-8">
+            <h1 className="text-white text-xs">
+              Made with ❤️ in San Francisco
+            </h1>
+          </div>
+        </div>
       </div>
     </ScrollContext.Provider>
   );
@@ -441,9 +486,7 @@ export default function Page() {
       {scrollContext ? (
         <ScrollableSection motionDivRef={motionDivRef} />
       ) : (
-        <div className="flex items-center justify-center h-full text-white font-bold text-2xl uppercase">
-          Loading...
-        </div>
+        <Loading />
       )}
     </div>
   );
