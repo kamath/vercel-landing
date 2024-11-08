@@ -261,6 +261,14 @@ function ScrollableSection({
     getRecentlyPlayed().then(setRecentlyPlayed);
   }, []);
 
+  if (
+    topTracks.length === 0 ||
+    topArtists.length === 0 ||
+    recentlyPlayed.length === 0
+  ) {
+    return <Loading />;
+  }
+
   return (
     <ScrollContext.Provider value={{ scrollYProgress }}>
       <div className="w-full overflow-hidden">
