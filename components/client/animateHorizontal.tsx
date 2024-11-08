@@ -6,13 +6,15 @@ import { ScrollContext } from "./page";
 export default function AnimateHorizontalScroll({
   children,
   scroll,
+  window = [0, 1],
 }: {
   children: React.ReactNode;
   scroll: [number, number];
+  window?: [number, number];
 }) {
   const { scrollYProgress } = useContext(ScrollContext);
 
-  const scrollX = useTransform(scrollYProgress, [0, 1], scroll);
+  const scrollX = useTransform(scrollYProgress, window, scroll);
 
   return (
     <motion.div

@@ -13,6 +13,7 @@ import { MotionValue, useScroll, useTransform } from "framer-motion";
 import AnimateHorizontalScroll from "./animateHorizontal";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faInstagram } from "@fortawesome/free-brands-svg-icons";
+import { faHeart } from "@fortawesome/free-solid-svg-icons";
 
 const food = [
   {
@@ -49,6 +50,39 @@ const food = [
   },
 ];
 
+const workExperience = [
+  {
+    company: "Company 1",
+    role: "Role 1",
+    duration: "Duration 1",
+    image: "/img/brands/browserbase.svg",
+  },
+  {
+    company: "Company 2",
+    role: "Role 2",
+    duration: "Duration 2",
+    image: "/img/brands/browserbase.svg",
+  },
+  {
+    company: "Company 3",
+    role: "Role 3",
+    duration: "Duration 3",
+    image: "/img/brands/browserbase.svg",
+  },
+  {
+    company: "Company 4",
+    role: "Role 4",
+    duration: "Duration 4",
+    image: "/img/brands/browserbase.svg",
+  },
+  {
+    company: "Company 5",
+    role: "Role 5",
+    duration: "Duration 5",
+    image: "/img/brands/browserbase.svg",
+  },
+];
+
 interface ScrollContextType {
   scrollYProgress: MotionValue<number>;
 }
@@ -79,7 +113,7 @@ function ScrollableSection({
     getRecentlyPlayed().then(setRecentlyPlayed);
   }, []);
 
-  const showBanner = useTransform(scrollYProgress, [0, 0.1], [0, 1]);
+  const showBanner = useTransform(scrollYProgress, [0, 0.05], [0, 1]);
 
   return (
     <ScrollContext.Provider value={{ scrollYProgress }}>
@@ -168,6 +202,51 @@ function ScrollableSection({
                   <h5 className="text-sm">currychefwiththepot</h5>
                 </button>
               </a>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-4">
+          <div className="flex w-full h-[160px]">
+            <AnimateHorizontalScroll window={[0.1, 1]} scroll={[0, -300]}>
+              <div className="relative w-[200vw] md:w-[700px] aspect-video">
+                <Image
+                  src="/img/sf.jpg"
+                  alt="map"
+                  fill
+                  className="object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black" />
+              </div>
+            </AnimateHorizontalScroll>
+          </div>
+          <div className="text-white px-8">
+            <h1 className="text-2xl w-full">
+              <div className="flex items-center flex-wrap gap-2">
+                <span className="whitespace-nowrap">With</span>
+                <FontAwesomeIcon icon={faHeart} />
+                <span className="whitespace-nowrap">from San Francisco</span>
+              </div>
+            </h1>
+            <div className="flex gap-4 overflow-x-auto pb-4">
+              {workExperience.map((item, index) => (
+                <div className="flex flex-col gap-2" key={index}>
+                  <div className="relative w-[130px] shrink-0 aspect-square">
+                    <Image
+                      src={item.image}
+                      alt={item.company}
+                      fill
+                      className="object-contain"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <h3 className="text-sm font-bold">
+                      {item.company.toUpperCase()}
+                    </h3>
+                    <h5 className="text-xs">{item.role}</h5>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
