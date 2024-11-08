@@ -3,13 +3,13 @@
 import { ArtistCard, TrackCard } from "./spotify/artist";
 import Image from "next/image";
 import { Artist, Track } from "@spotify/web-api-ts-sdk";
-import { createContext, useEffect, useRef, useState } from "react";
+import { createContext, Suspense, useEffect, useRef, useState } from "react";
 import { getRecentlyPlayed, getTopTracks } from "@/lib/spotify";
 import { getTopArtists } from "@/lib/spotify";
 import { PinterestScroll } from "./pinterestScroll";
 import { motion } from "framer-motion";
 import Music from "./spotify/music";
-import { MotionValue, useScroll, useTransform } from "framer-motion";
+import { MotionValue, useScroll } from "framer-motion";
 import AnimateHorizontalScroll from "./animateHorizontal";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faInstagram } from "@fortawesome/free-brands-svg-icons";
@@ -249,7 +249,7 @@ function ScrollableSection({
     getRecentlyPlayed().then(setRecentlyPlayed);
   }, []);
 
-  const showBanner = useTransform(scrollYProgress, [0, 0.05], [0, 1]);
+  //   const showBanner = useTransform(scrollYProgress, [0, 0.05], [0, 1]);
 
   return (
     <ScrollContext.Provider value={{ scrollYProgress }}>
@@ -286,51 +286,57 @@ function ScrollableSection({
             </AnimateHorizontalScroll>
           </div>
           {recentlyPlayed.length > 0 && (
-            <motion.div
-              className="absolute inset-0 bg-gradient-to-b from-black to-transparent flex items-center justify-center"
-              style={{ opacity: showBanner }}
-            >
-              <div className="flex flex-col gap-4 text-gray-100">
-                <div className="flex items-center justify-center gap-4">
-                  <div className="w-20 h-20 relative">
-                    <div className="absolute inset-0">
-                      <Image
-                        src={recentlyPlayed[0].track.album.images[0].url}
-                        alt={recentlyPlayed[0].track.name}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                    <div className="relative bg-black/50 z-10 w-full h-full flex items-center justify-center">
-                      <div className="w-5 h-5">
-                        <Music />
+            <div className="absolute inset-0">
+              <motion.div
+                className="relative w-full h-full bg-gradient-to-b from-black to-transparent flex items-center justify-center"
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
+              >
+                <div className="flex flex-col gap-4 text-gray-100">
+                  <div className="flex items-center justify-center gap-4">
+                    <div className="w-20 h-20 relative">
+                      <div className="absolute inset-0">
+                        <Image
+                          src={recentlyPlayed[0].track.album.images[0].url}
+                          alt={recentlyPlayed[0].track.name}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                      <div className="relative bg-black/50 z-10 w-full h-full flex items-center justify-center">
+                        <div className="w-5 h-5">
+                          <Music />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <h3 className="text-sm">Last Played:</h3>
-                    <div>
-                      <h1 className="text-xl font-bold">
-                        {recentlyPlayed[0].track.name.toUpperCase()}
-                      </h1>
-                      <h5 className="text-sm">
-                        {recentlyPlayed[0].track.artists[0].name}
+                    <div className="flex flex-col gap-2">
+                      <h3 className="text-sm">Last Played:</h3>
+                      <div className="w-[200px]">
+                        <h1 className="text-xl font-bold truncate">
+                          {recentlyPlayed[0].track.name.toUpperCase()}
+                        </h1>
+                        <h5 className="text-sm truncate">
+                          {recentlyPlayed[0].track.artists[0].name}
+                        </h5>
+                      </div>
+                      <h5 className="text-xs">
+                        {recentlyPlayed[0].played_at.toLocaleDateString(
+                          "en-US",
+                          {
+                            month: "long",
+                            day: "numeric",
+                            year: "numeric",
+                            hour: "numeric",
+                            minute: "numeric",
+                            hour12: true,
+                          }
+                        )}
                       </h5>
                     </div>
-                    <h5 className="text-xs">
-                      {recentlyPlayed[0].played_at.toLocaleDateString("en-US", {
-                        month: "long",
-                        day: "numeric",
-                        year: "numeric",
-                        hour: "numeric",
-                        minute: "numeric",
-                        hour12: true,
-                      })}
-                    </h5>
                   </div>
                 </div>
-              </div>
-            </motion.div>
+              </motion.div>
+            </div>
           )}
         </div>
 
@@ -412,12 +418,6 @@ function ScrollableSection({
             <ImageCard item={item} key={index} index={index} />
           ))}
         </div>
-
-        <motion.div
-          className="h-[1000px] bg-white"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-        ></motion.div>
       </div>
     </ScrollContext.Provider>
   );
@@ -438,7 +438,13 @@ export default function Page() {
       className="w-screen md:w-full h-screen md:h-full overflow-y-auto bg-black"
       ref={motionDivRef}
     >
-      {scrollContext && <ScrollableSection motionDivRef={motionDivRef} />}
+      {scrollContext ? (
+        <ScrollableSection motionDivRef={motionDivRef} />
+      ) : (
+        <div className="flex items-center justify-center h-full text-white font-bold text-2xl uppercase">
+          Loading...
+        </div>
+      )}
     </div>
   );
 }
