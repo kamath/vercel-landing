@@ -15,6 +15,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faInstagram } from "@fortawesome/free-brands-svg-icons";
 import { ScrollArea } from "@radix-ui/react-scroll-area";
 import { ScrollBar } from "../ui/scroll-area";
+import { cn } from "@/lib/utils";
 
 const food = [
   {
@@ -126,6 +127,21 @@ export const ScrollContext = createContext<ScrollContextType>({
   scrollYProgress: new MotionValue(),
 });
 
+function SpotifyLoadingImage({
+  includeGradient = false,
+}: {
+  includeGradient?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "relative flex items-center justify-center h-[160px] w-[160px] overflow-hidden",
+        includeGradient && "bg-gradient-to-b from-black via-black to-white"
+      )}
+    ></div>
+  );
+}
+
 function ScrollableSection({
   motionDivRef,
 }: {
@@ -136,7 +152,6 @@ function ScrollableSection({
   const [recentlyPlayed, setRecentlyPlayed] = useState<
     { track: Track; played_at: Date }[]
   >([]);
-
   const { scrollYProgress } = useScroll({
     container: motionDivRef,
     offset: ["start start", "end start"],
@@ -163,16 +178,26 @@ function ScrollableSection({
         <div className="relative">
           <div className="flex overflow-hidden w-full h-[160px]">
             <AnimateHorizontalScroll scroll={[0, -160 * 2]}>
-              {topTracks.map((item: Track, index: number) => (
-                <TrackCard track={item} key={index} />
-              ))}
+              {Array.from({ length: 10 }).map((_, index) => {
+                if (index < topTracks.length) {
+                  return <TrackCard track={topTracks[index]} key={index} />;
+                }
+                return (
+                  <SpotifyLoadingImage key={index} includeGradient={false} />
+                );
+              })}
             </AnimateHorizontalScroll>
           </div>
           <div className="flex overflow-hidden w-full">
             <AnimateHorizontalScroll scroll={[-160 * 2, 0]}>
-              {topArtists.map((item: Artist, index: number) => (
-                <ArtistCard artist={item} key={index} />
-              ))}
+              {Array.from({ length: 10 }).map((_, index) => {
+                if (index < topArtists.length) {
+                  return <ArtistCard artist={topArtists[index]} key={index} />;
+                }
+                return (
+                  <SpotifyLoadingImage key={index} includeGradient={true} />
+                );
+              })}
             </AnimateHorizontalScroll>
           </div>
           {recentlyPlayed.length > 0 && (
@@ -242,9 +267,9 @@ function ScrollableSection({
         </div>
 
         <div className="flex flex-col gap-4">
-          <div className="flex w-full h-[160px]">
-            <AnimateHorizontalScroll window={[0.1, 1]} scroll={[0, -300]}>
-              <div className="relative w-[700px] aspect-video">
+          <div className="flex w-full h-[150px]">
+            <AnimateHorizontalScroll window={[0.1, 1]} scroll={[0, -100]}>
+              <div className="relative w-[900px] max-h-[200px] aspect-video">
                 <Image
                   src="/img/sf.jpg"
                   alt="map"
@@ -255,10 +280,13 @@ function ScrollableSection({
               </div>
             </AnimateHorizontalScroll>
           </div>
-          <div className="text-white px-8">
+          <div className="text-white">
             <ScrollArea className="flex gap-4 overflow-x-auto pb-4 w-full">
               {workExperience.map((item, index) => (
-                <div className="flex flex-col gap-2" key={index}>
+                <div
+                  className={cn("flex flex-col gap-2", index === 0 && "ml-8")}
+                  key={index}
+                >
                   <div className="relative w-[130px] shrink-0 aspect-square rounded-lg overflow-hidden">
                     <Image
                       src={item.image}
@@ -286,7 +314,11 @@ function ScrollableSection({
           </div>
         </div>
 
-        <div className="h-[1000px] bg-black"></div>
+        <motion.div
+          className="h-[1000px] bg-black"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+        ></motion.div>
       </div>
     </ScrollContext.Provider>
   );

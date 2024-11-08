@@ -11,7 +11,7 @@ export function ArtistCard({ artist }: { artist: Artist }) {
           src={artist.images.filter((a) => a.width === 640)[0]?.url}
           alt={artist.name}
           fill
-          className=" object-cover"
+          className="object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent flex items-center justify-center"></div>
         <div className="absolute inset-0 bg-gradient-to-l from-black/60 to-transparent flex items-center justify-center"></div>
