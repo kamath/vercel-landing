@@ -76,7 +76,7 @@ const workExperience = [
   },
   {
     company: "Whatnot",
-    role: "Founding ML Scientist",
+    role: "2nd ML Scientist",
     description: "YC W20, a16z",
     duration: "Duration 3",
     image: "/img/brands/whatnot.jpg",
