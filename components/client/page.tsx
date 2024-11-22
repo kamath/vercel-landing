@@ -176,7 +176,7 @@ export const ScrollContext = createContext<ScrollContextType>({
 
 function Loading() {
   return (
-    <div className="flex gap-2 items-center justify-center h-screen w-screen text-white font-bold text-2xl uppercase">
+    <div className="flex gap-2 items-center justify-center h-full w-full text-white font-bold text-2xl uppercase">
       <div className="loader"></div>
       Loading
     </div>
@@ -264,7 +264,8 @@ function ScrollableSection({
   if (
     topTracks.length === 0 ||
     topArtists.length === 0 ||
-    recentlyPlayed.length === 0
+    recentlyPlayed.length === 0 ||
+    true
   ) {
     return <Loading />;
   }
