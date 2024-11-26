@@ -264,8 +264,7 @@ function ScrollableSection({
   if (
     topTracks.length === 0 ||
     topArtists.length === 0 ||
-    recentlyPlayed.length === 0 ||
-    true
+    recentlyPlayed.length === 0
   ) {
     return <Loading />;
   }
