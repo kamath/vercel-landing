@@ -256,7 +256,7 @@ function ScrollableSection({
   return (
     <ScrollContext.Provider value={{ scrollYProgress }}>
       <div className="w-full overflow-hidden">
-        <div className="flex items-center justify-end gap-4 px-8 pt-12 pb-4 bg-black text-gray-100">
+        <div className="flex items-center justify-end gap-4 px-8 pt-12 pb-8 bg-black text-gray-100">
           <div className="flex flex-col text-right mt-8">
             <h1 className="text-2xl font-bold">&quot;LANDING PAGE&quot;</h1>
             <h5 className="text-sm">c/o ANIRUDH KAMATH</h5>
@@ -317,11 +317,16 @@ function ScrollableSection({
                     viewport={{
                       amount: 0.3,
                       margin: "0px 0px -20% 0px",
+                      once: true,
                     }}
-                    transition={{
-                      delay: index <= 2 ? 0.2 * index : 0,
-                      duration: 1,
-                    }}
+                    transition={
+                      index <= 2
+                        ? {
+                            delay: 0.2 * index,
+                            duration: 1,
+                          }
+                        : {}
+                    }
                   >
                     <div className="relative w-[130px] shrink-0 aspect-square rounded-lg overflow-hidden">
                       <Image
