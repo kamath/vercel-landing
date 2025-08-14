@@ -1,6 +1,5 @@
 "use client";
 
-import { ArtistCard, TrackCard } from "./spotify/artist";
 import Image from "next/image";
 import { Artist, Track } from "@spotify/web-api-ts-sdk";
 import { createContext, useEffect, useRef, useState } from "react";
@@ -8,7 +7,6 @@ import { getRecentlyPlayed, getTopTracks } from "@/lib/spotify";
 import { getTopArtists } from "@/lib/spotify";
 import { PinterestScroll } from "./pinterestScroll";
 import { motion } from "framer-motion";
-import Music from "./spotify/music";
 import { MotionValue, useScroll } from "framer-motion";
 import AnimateHorizontalScroll from "./animateHorizontal";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -21,6 +19,7 @@ import {
 import { ScrollArea } from "@radix-ui/react-scroll-area";
 import { ScrollBar } from "../ui/scroll-area";
 import { cn } from "@/lib/utils";
+import GithubGrass from "./GithubGrass";
 
 const food = [
   {
@@ -183,21 +182,6 @@ function Loading() {
   );
 }
 
-function SpotifyLoadingImage({
-  includeGradient = false,
-}: {
-  includeGradient?: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        "relative flex items-center justify-center h-[160px] w-[160px] overflow-hidden",
-        includeGradient && "bg-gradient-to-b from-black via-black to-white"
-      )}
-    ></div>
-  );
-}
-
 function ImageCard({
   item,
   index,
@@ -272,95 +256,24 @@ function ScrollableSection({
   return (
     <ScrollContext.Provider value={{ scrollYProgress }}>
       <div className="w-full overflow-hidden">
-        <div className="flex items-center justify-end gap-4 px-8 pt-12 pb-4 bg-black text-gray-100">
+        <div className="flex items-center justify-end gap-4 px-8 pt-12 pb-8 bg-black text-gray-100">
           <div className="flex flex-col text-right mt-8">
             <h1 className="text-2xl font-bold">&quot;LANDING PAGE&quot;</h1>
             <h5 className="text-sm">c/o ANIRUDH KAMATH</h5>
           </div>
         </div>
         <div className="relative">
-          <div className="flex overflow-hidden w-full h-[160px]">
-            <AnimateHorizontalScroll scroll={[0, -160 * 2]}>
-              {Array.from({ length: 10 }).map((_, index) => {
-                if (index < topTracks.length) {
-                  return <TrackCard track={topTracks[index]} key={index} />;
-                }
-                return (
-                  <SpotifyLoadingImage key={index} includeGradient={false} />
-                );
-              })}
-            </AnimateHorizontalScroll>
-          </div>
           <div className="flex overflow-hidden w-full">
-            <AnimateHorizontalScroll scroll={[-160 * 2, 0]}>
-              {Array.from({ length: 10 }).map((_, index) => {
-                if (index < topArtists.length) {
-                  return <ArtistCard artist={topArtists[index]} key={index} />;
-                }
-                return (
-                  <SpotifyLoadingImage key={index} includeGradient={true} />
-                );
-              })}
-            </AnimateHorizontalScroll>
+            <GithubGrass username="kamath" />
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{
+                background:
+                  "radial-gradient(ellipse at center, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 100%)",
+              }}
+            />
           </div>
-          {recentlyPlayed.length > 0 && (
-            <div className="absolute inset-0">
-              <motion.div
-                className="relative w-full h-full bg-gradient-to-b from-black to-transparent flex items-center justify-center"
-                initial={{ opacity: 0 }}
-                whileInView={{ opacity: 1 }}
-                viewport={{
-                  margin: "0px 0px -80% 0px",
-                }}
-              >
-                <div className="flex flex-col gap-4 text-gray-100">
-                  <div className="flex items-center justify-center gap-4">
-                    <div className="w-20 h-20 relative">
-                      <div className="absolute inset-0">
-                        <Image
-                          src={recentlyPlayed[0].track.album.images[0].url}
-                          alt={recentlyPlayed[0].track.name}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                      <div className="relative bg-black/50 z-10 w-full h-full flex items-center justify-center">
-                        <div className="w-5 h-5">
-                          <Music />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <h3 className="text-sm">Last Played:</h3>
-                      <div className="w-[200px]">
-                        <h1 className="text-xl font-bold truncate">
-                          {recentlyPlayed[0].track.name.toUpperCase()}
-                        </h1>
-                        <h5 className="text-sm truncate">
-                          {recentlyPlayed[0].track.artists[0].name}
-                        </h5>
-                      </div>
-                      <h5 className="text-xs">
-                        {recentlyPlayed[0].played_at.toLocaleDateString(
-                          "en-US",
-                          {
-                            month: "long",
-                            day: "numeric",
-                            year: "numeric",
-                            hour: "numeric",
-                            minute: "numeric",
-                            hour12: true,
-                          }
-                        )}
-                      </h5>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            </div>
-          )}
         </div>
-
         <div className="p-4 flex items-center justify-center w-full overflow-hidden bg-white">
           <div className="flex flex-col gap-4">
             <PinterestScroll food={food} />
@@ -404,11 +317,16 @@ function ScrollableSection({
                     viewport={{
                       amount: 0.3,
                       margin: "0px 0px -20% 0px",
+                      once: true,
                     }}
-                    transition={{
-                      delay: index <= 2 ? 0.2 * index : 0,
-                      duration: 1,
-                    }}
+                    transition={
+                      index <= 2
+                        ? {
+                            delay: 0.2 * index,
+                            duration: 1,
+                          }
+                        : {}
+                    }
                   >
                     <div className="relative w-[130px] shrink-0 aspect-square rounded-lg overflow-hidden">
                       <Image
