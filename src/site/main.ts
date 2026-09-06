@@ -65,6 +65,8 @@ class NoteView {
   rows = 0;
   /** Cancels a running figure animation before the figure is redrawn. */
   private stopAnimation: (() => void) | null = null;
+  /** Debug handle on a running figure animation. */
+  scene: { seek: (t: number) => void } | null = null;
 
   constructor(readonly note: Note) {
     const r = rng(`scatter:${note.id}`);
@@ -154,6 +156,7 @@ class NoteView {
           ? (() => {
               const scene = drawFlight(svg, maxW, grid, this.note.id, { from: fig.from, to: fig.to }, textEl, labelWidth);
               this.stopAnimation = scene.stop;
+              this.scene = scene;
               return scene;
             })()
           : drawFigure(svg, fig, maxW, grid, this.note.id);
@@ -397,6 +400,7 @@ async function main(): Promise<void> {
   const timings: { width: number; ms: number }[] = [];
   const doLayout = () => {
     const width = page.clientWidth;
+    if (width === 0) return; // hidden or not yet sized: the ResizeObserver will call back when there is paper
     const grid = gridSize(width);
     const margin = grid; // one blank cell of paper around the writing
     const cols = Math.max(4, Math.floor((width - margin * 2) / grid));
@@ -424,7 +428,7 @@ async function main(): Promise<void> {
   new ResizeObserver(relayout).observe(page);
   doLayout(); // synchronously, so a background tab or prerender still gets a laid-out page
   // Debug hook: window.__notes.timings shows how long the last layouts took.
-  (window as unknown as { __notes: unknown }).__notes = { relayout: doLayout, timings };
+  (window as unknown as { __notes: unknown }).__notes = { relayout: doLayout, timings, seek: (t: number) => views.forEach((v) => v.scene?.seek(t)) };
 }
 
 void main();
