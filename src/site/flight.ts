@@ -4,20 +4,16 @@
 
 import { ink, svgEl, wobbly, type XY } from './doodle.js';
 
-const PERIOD = 12; // seconds per round trip
+const PERIOD = 7.8; // seconds per round trip
 
-// Timeline in seconds. Cities draw in as the line arrives and undraw as it sets off again.
+// Timeline in seconds. Cities draw in just before the line arrives, hold briefly, and fade as it sets off again.
 const T = {
-  fly1: [0.0, 4.0],
-  sfUndraw: [0.0, 2.5],
-  sfBack: [2.2, 2.6],
-  nycFade: [2.5, 2.9],
-  nycDraw: [2.6, 3.8],
-  fly2: [6.0, 10.0],
-  nycUndraw: [6.0, 7.0],
-  nycBack: [6.8, 7.2],
-  sfFade: [8.5, 8.9],
-  sfDraw: [8.6, 9.8],
+  fly1: [0.0, 3.6],
+  sfUndraw: [0.0, 0.7],
+  nycDraw: [2.4, 3.5],
+  nycUndraw: [3.9, 4.6],
+  fly2: [3.9, 7.5],
+  sfDraw: [6.3, 7.4],
 } as const;
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
@@ -31,18 +27,6 @@ function drawingOpacity(t: number, draw: readonly [number, number], undraw: read
   const undrawLen = undraw[1] - undraw[0];
   if (tt < undrawAt) return 1;
   if (tt < undrawAt + undrawLen) return 1 - ease((tt - undrawAt) / undrawLen);
-  return 1;
-}
-
-/** Opacity of a label that fades out over `out` and back in over `back`, either window possibly wrapping the loop. */
-function labelOpacity(t: number, out: readonly [number, number], back: readonly [number, number]): number {
-  const tt = (t - out[0] + PERIOD) % PERIOD;
-  const outLen = out[1] - out[0];
-  const backAt = (back[0] - out[0] + PERIOD) % PERIOD;
-  const backLen = back[1] - back[0];
-  if (tt < outLen) return 1 - ease(tt / outLen);
-  if (tt < backAt) return 0;
-  if (tt < backAt + backLen) return ease((tt - backAt) / backLen);
   return 1;
 }
 
@@ -90,7 +74,7 @@ function setProgress(strokes: Stroke[], t: number): number {
 }
 
 /** Three New York landmarks in a box `W` wide, `H` tall, standing on y = 0 at x = 0: Chrysler, Empire State, One WTC. */
-function skyline(W: number, H: number, seed: string): { outlines: SVGPathElement[]; windows: SVGPathElement[] } {
+function skyline(W: number, H: number, seed: string): SVGPathElement[] {
   const chrysler = (x: number, w: number, h: number): XY[] => [
     { x, y: 0 }, { x, y: -h },
     { x: x + w * 0.12, y: -h - H * 0.06 }, { x: x + w * 0.28, y: -h - H * 0.06 },
@@ -116,21 +100,7 @@ function skyline(W: number, H: number, seed: string): { outlines: SVGPathElement
     empire(0.36 * W, 0.26 * W, 0.78 * H),
     wtc(0.7 * W, 0.28 * W, 0.86 * H),
   ];
-  const outlines = shapes.map((pts, i) => solid(ink(wobbly(pts, `${seed}:b${i}`, 0.5, 5), 1.7)));
-  // Window dashes: two columns and a few rows inside each building, inked after the outline.
-  const windows: SVGPathElement[] = [];
-  const boxes: [number, number, number][] = [[0.02 * W, 0.24 * W, 0.62 * H], [0.36 * W, 0.26 * W, 0.78 * H], [0.7 * W, 0.28 * W, 0.86 * H]];
-  boxes.forEach(([x, w, h], b) => {
-    const rows = 3;
-    for (let r = 0; r < rows; r++) {
-      const y = -h * (0.22 + (r * 0.55) / (rows - 1));
-      for (const c of [0.3, 0.7]) {
-        const cx = x + w * c;
-        windows.push(ink(wobbly([{ x: cx - w * 0.1, y }, { x: cx + w * 0.1, y }], `${seed}:w${b}${r}${c}`, 0.25, 4), 1.3));
-      }
-    }
-  });
-  return { outlines, windows };
+  return shapes.map((pts, i) => solid(ink(wobbly(pts, `${seed}:b${i}`, 0.5, 5), 1.7)));
 }
 
 /** A closed pen shape that hides whatever is behind it once drawn (the fill fades in with the stroke). */
@@ -142,8 +112,8 @@ function solid(el: SVGPathElement): SVGPathElement {
 }
 
 /**
- * The Golden Gate, drawn the way a hand would: water first, then the poles (two towers and a row of
- * suspenders), then the cable arch over everything. A paper-filled silhouette beneath hides the arc.
+ * The Golden Gate, drawn the way a hand would: water first, then the poles (two towers and a few
+ * verticals), then the cable arch over everything. A paper-filled silhouette beneath hides the arc.
  * Box `W` x `H`, standing on y = 0.
  */
 function goldenGate(W: number, H: number, seed: string): { fill: SVGPathElement; water: SVGPathElement[]; poles: SVGPathElement[]; arch: SVGPathElement[] } {
@@ -169,19 +139,15 @@ function goldenGate(W: number, H: number, seed: string): { fill: SVGPathElement;
   const water = [ink(wobbly(wave, `${seed}:water`, 0.4, 5), 1.6)];
   const pole = (x: number, top: number, width: number, key: string) =>
     ink(wobbly([{ x, y: waterY }, { x, y: top }], `${seed}:${key}`, 0.35, 5), width);
-  const poles: SVGPathElement[] = [];
-  const step = W / 13;
-  for (let x = step * 0.7; x < W - step * 0.3; x += step) {
-    const tower = towerX.find((tx) => Math.abs(tx - x) < step * 0.6);
-    if (tower !== undefined) {
-      poles.push(pole(tower, -H, 2.1, `t${x.toFixed(0)}`));
-      for (const f of [0.55, 0.85]) {
-        poles.push(ink(wobbly([{ x: tower - W * 0.03, y: -H * f }, { x: tower + W * 0.03, y: -H * f }], `${seed}:x${x.toFixed(0)}${f}`, 0.25, 4), 1.4));
-      }
-    } else {
-      poles.push(pole(x, cableAt(x), 1.1, `s${x.toFixed(0)}`));
-    }
-  }
+  // A scribbler draws the two towers and a handful of verticals, not every cable.
+  const poles = [
+    pole(W * 0.15, cableAt(W * 0.15), 1.2, 's0'),
+    pole(towerX[0], -H, 2.1, 't0'),
+    pole(W * 0.43, cableAt(W * 0.43), 1.2, 's1'),
+    pole(W * 0.57, cableAt(W * 0.57), 1.2, 's2'),
+    pole(towerX[1], -H, 2.1, 't1'),
+    pole(W * 0.85, cableAt(W * 0.85), 1.2, 's3'),
+  ];
   const arch = [ink(wobbly(cable, `${seed}:arch`, 0.5, 6), 1.8)];
   return { fill, water, poles, arch };
 }
@@ -236,8 +202,8 @@ export function drawFlight(
   const cityW = w * 0.34;
   const cityH = w * 0.2;
   const nyc = svgEl('g', { transform: `translate(${(toRight - cityW).toFixed(1)} ${(to.y + size * 0.95).toFixed(1)})` });
-  const city = skyline(cityW, cityH, `${seed}:nyc`);
-  nyc.append(...city.outlines, ...city.windows);
+  const nycStrokes = skyline(cityW, cityH, `${seed}:nyc`);
+  nyc.append(...nycStrokes);
   const sf = svgEl('g', { transform: `translate(${(from.x - size * 0.3).toFixed(1)} ${baseline.toFixed(1)})` });
   const bridge = goldenGate(cityW * 1.1, cityH * 0.9, `${seed}:sf`);
   const sfStrokes = [...bridge.water, ...bridge.poles, ...bridge.arch];
@@ -253,10 +219,7 @@ export function drawFlight(
   }
 
   const phase = (a: number, b: number, [d0, d1]: readonly [number, number]): [number, number] => [d0 + (d1 - d0) * a, d0 + (d1 - d0) * b];
-  const nycInk = [
-    ...schedule(city.outlines, phase(0, 0.65, T.nycDraw), T.nycUndraw),
-    ...schedule(city.windows, phase(0.5, 1, T.nycDraw), T.nycUndraw),
-  ];
+  const nycInk = schedule(nycStrokes, T.nycDraw, T.nycUndraw);
   const sfInk = [
     ...schedule(bridge.water, phase(0, 0.2, T.sfDraw), T.sfUndraw),
     ...schedule(bridge.poles, phase(0.18, 0.72, T.sfDraw), T.sfUndraw),
@@ -285,8 +248,6 @@ export function drawFlight(
     }
     reveal.style.strokeDashoffset = `${offset}`;
     arc.style.strokeDashoffset = `${march}`;
-    toText.style.opacity = `${labelOpacity(t, T.nycFade, T.nycBack)}`;
-    fromText.style.opacity = `${labelOpacity(t, T.sfFade, T.sfBack)}`;
     const nycFade = drawingOpacity(t, T.nycDraw, T.nycUndraw);
     const sfFade = drawingOpacity(t, T.sfDraw, T.sfUndraw);
     nyc.style.opacity = `${nycFade}`;
@@ -294,8 +255,11 @@ export function drawFlight(
     const nycUp = setProgress(nycInk, t) * nycFade;
     const sfUp = setProgress(sfInk, t) * sfFade;
     bridge.fill.style.fillOpacity = `${Math.min(1, sfUp * 1.5)}`;
-    // The dotted line fades out as a city draws in and comes back as the city fades away.
-    arc.style.opacity = `${1 - Math.min(1, Math.max(nycUp, sfUp) * 1.5)}`;
+    // The dotted line and both city labels fade out together as a city draws in, and return as it fades away.
+    const line = 1 - Math.min(1, Math.max(nycUp, sfUp) * 1.5);
+    arc.style.opacity = `${line}`;
+    fromText.style.opacity = `${line}`;
+    toText.style.opacity = `${line}`;
     raf = requestAnimationFrame(frame);
   };
   raf = requestAnimationFrame(frame);
