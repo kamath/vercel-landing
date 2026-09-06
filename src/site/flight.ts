@@ -12,7 +12,7 @@
 // draw the bridge again, just as before.
 // Forever. One clock, one pen speed (the eraser is quicker); a lift takes the time the pen needs to cross the gap.
 
-import { ink, wobbly, type XY } from './doodle.js';
+import { ink, svgEl, wobbly, type XY } from './doodle.js';
 
 const SPEED = 0.7; // widths per second the pen moves at, so a drawing takes the same time at any size
 const HOLD = 1; // seconds a finished city stays before it collapses
@@ -26,6 +26,80 @@ const ease = (p: number) => (p < 0.5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2);
 const pace = (p: number) => p + 0.3 * (ease(p) - p);
 
 const shift = (pts: XY[], by: XY): XY[] => pts.map((p) => ({ x: p.x + by.x, y: p.y + by.y }));
+
+/** A small, inked airplane that replaces the pointer while the flight doodle is held. */
+function cursorPlane(seed: string): SVGGElement {
+  const g = svgEl('g', { class: 'flight-cursor', 'aria-hidden': 'true', visibility: 'hidden', 'pointer-events': 'none' });
+  // One uninterrupted pen motion around an asymmetric paper plane and through its folded centre.
+  const line = [
+    { x: -13, y: -9 },
+    { x: 14, y: 0 },
+    { x: -8, y: 11 },
+    { x: -5, y: 3 },
+    { x: -13, y: -9 },
+    { x: -5, y: 3 },
+    { x: 14, y: 0 },
+  ];
+  g.append(ink(wobbly(line, `${seed}:cursor-plane`, 0.12, 5), 1.9));
+  return g;
+}
+
+/** Follow a mouse across the SVG and report whether it is currently holding the animated scene. */
+function followPointer(svg: SVGSVGElement, plane: SVGGElement, setHeld: (held: boolean) => void): () => void {
+  let held = false;
+  let headingPoint: DOMPoint | null = null;
+  let heading: number | null = null;
+  const move = (event: PointerEvent) => {
+    if (event.pointerType !== 'mouse') return;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return;
+    const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(ctm.inverse());
+    if (headingPoint) {
+      const dx = point.x - headingPoint.x;
+      const dy = point.y - headingPoint.y;
+      const distance = Math.hypot(dx, dy);
+      // Read direction over several pixels, then ease toward it. Tiny hand movements no longer flick the plane around.
+      if (distance >= 4) {
+        const target = (Math.atan2(dy, dx) * 180) / Math.PI;
+        if (heading === null) heading = target;
+        else {
+          const turn = ((target - heading + 540) % 360) - 180;
+          heading += turn * Math.min(0.65, 0.3 + distance / 50);
+        }
+        headingPoint = point;
+      }
+    } else {
+      headingPoint = point;
+    }
+    plane.setAttribute('transform', `translate(${point.x.toFixed(1)} ${point.y.toFixed(1)}) rotate(${(heading ?? 0).toFixed(1)})`);
+    plane.setAttribute('visibility', 'visible');
+    if (!held) {
+      held = true;
+      setHeld(true);
+    }
+  };
+  const leave = (event: PointerEvent) => {
+    if (event.pointerType !== 'mouse') return;
+    plane.setAttribute('visibility', 'hidden');
+    headingPoint = null;
+    heading = null;
+    if (held) {
+      held = false;
+      setHeld(false);
+    }
+  };
+  svg.classList.add('flight-scene');
+  svg.addEventListener('pointerenter', move);
+  svg.addEventListener('pointermove', move);
+  svg.addEventListener('pointerleave', leave);
+  return () => {
+    plane.setAttribute('visibility', 'hidden');
+    svg.classList.remove('flight-scene');
+    svg.removeEventListener('pointerenter', move);
+    svg.removeEventListener('pointermove', move);
+    svg.removeEventListener('pointerleave', leave);
+  };
+}
 
 // ----------------------------------------------------------------------------- drawings
 
@@ -170,7 +244,9 @@ export function drawFlight(
   ];
   const [leftPole, rightPole, road, arch, flight, nyc, flightBack] = strokes.map((_, i) => i);
   const els = strokes.map((s) => s.el);
-  svg.append(...els);
+  const animation = svgEl('g', { class: 'flight-animation' });
+  animation.append(...els);
+  svg.append(animation);
 
   const labelSize = size * 0.85;
   const baseline = ground + size * 0.95;
@@ -178,6 +254,11 @@ export function drawFlight(
   const toW = labelWidth(labels.to, labelSize);
   const toText = textEl(to.x + size * 0.3 - toW, baseline, labelSize, labels.to);
   svg.append(fromText, toText);
+
+  // This sits above the drawing and is positioned in SVG coordinates, so it stays under the pointer even when the
+  // note is scaled or slightly rotated by the page layout.
+  const plane = cursorPlane(seed);
+  svg.append(plane);
 
   // One pen. A segment is the order some strokes are drawn in, and which way along each the pen goes; a stroke draws
   // once the pen has travelled the length of everything before it, lifts included. Each segment is drawn, held,
@@ -314,13 +395,24 @@ export function drawFlight(
     // The whole picture: the outbound flight from the corner on, so its run down the pole does not double the pole.
     const still = bridgeH + Math.hypot(poleFoot.x - launch.x, poleFoot.y - launch.y);
     els.forEach((_, i) => setInk(i, i === flightBack ? [] : [[i === flight ? still : 0, lens[i]]]));
-    return { ...scene, stop: () => {}, pause: () => {}, resume: () => {}, seek: () => {}, frames: () => 0 };
+    const stopFollowing = followPointer(svg, plane, (held) => animation.setAttribute('visibility', held ? 'hidden' : 'visible'));
+    return {
+      ...scene,
+      stop: stopFollowing,
+      pause: () => {},
+      resume: () => {},
+      seek: () => {},
+      frames: () => 0,
+    };
   }
   show(0);
 
   let start = performance.now();
   let raf = 0;
   let running = true;
+  let stopped = false;
+  let externallyPaused = false;
+  let cursorPaused = false;
   let pausedAt = 0;
   let frames = 0;
   const frame = (now: number) => {
@@ -330,23 +422,40 @@ export function drawFlight(
   };
   raf = requestAnimationFrame(frame);
 
-  return {
-    ...scene,
-    stop: () => {
-      running = false;
-      cancelAnimationFrame(raf);
-    },
-    pause: () => {
-      if (!running) return;
-      running = false;
-      pausedAt = performance.now();
-      cancelAnimationFrame(raf);
-    },
-    resume: () => {
-      if (running) return;
+  /** Keep visibility pauses and pointer pauses independent, so leaving an off-screen SVG cannot restart it. */
+  const syncClock = () => {
+    const shouldRun = !stopped && !externallyPaused && !cursorPaused;
+    if (shouldRun === running) return;
+    if (shouldRun) {
       running = true;
       start += performance.now() - pausedAt; // pick up where it left off
       raf = requestAnimationFrame(frame);
+    } else {
+      running = false;
+      pausedAt = performance.now();
+      cancelAnimationFrame(raf);
+    }
+  };
+  const stopFollowing = followPointer(svg, plane, (held) => {
+    animation.setAttribute('visibility', held ? 'hidden' : 'visible');
+    cursorPaused = held;
+    syncClock();
+  });
+
+  return {
+    ...scene,
+    stop: () => {
+      stopped = true;
+      syncClock();
+      stopFollowing();
+    },
+    pause: () => {
+      externallyPaused = true;
+      syncClock();
+    },
+    resume: () => {
+      externallyPaused = false;
+      syncClock();
     },
     seek: (t) => {
       start = performance.now() - t * 1000;
