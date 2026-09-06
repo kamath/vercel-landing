@@ -53,13 +53,11 @@ interface Stroke {
   undraw: [number, number];
 }
 
-/** Give a group of strokes staggered draw/undraw windows, left to right, then right to left. */
+/** Give a group of strokes staggered draw windows (left to right); they all stay inked until the shared undraw window ends. */
 function schedule(els: SVGPathElement[], draw: readonly [number, number], undraw: readonly [number, number]): Stroke[] {
   const n = els.length;
   const per = (draw[1] - draw[0]) * 0.5;
   const step = n > 1 ? ((draw[1] - draw[0]) * 0.5) / (n - 1) : 0;
-  const uper = (undraw[1] - undraw[0]) * 0.5;
-  const ustep = n > 1 ? ((undraw[1] - undraw[0]) * 0.5) / (n - 1) : 0;
   return els.map((el, i) => {
     const len = el.getTotalLength();
     el.style.strokeDasharray = `${len}`;
@@ -68,7 +66,7 @@ function schedule(els: SVGPathElement[], draw: readonly [number, number], undraw
       el,
       len,
       draw: [draw[0] + i * step, draw[0] + i * step + per],
-      undraw: [undraw[0] + (n - 1 - i) * ustep, undraw[0] + (n - 1 - i) * ustep + uper],
+      undraw: [undraw[0], undraw[1]], // no stagger: the whole drawing fades together, nothing un-draws
     };
   });
 }
@@ -256,13 +254,13 @@ export function drawFlight(
 
   const phase = (a: number, b: number, [d0, d1]: readonly [number, number]): [number, number] => [d0 + (d1 - d0) * a, d0 + (d1 - d0) * b];
   const nycInk = [
-    ...schedule(city.outlines, phase(0, 0.65, T.nycDraw), phase(0.35, 1, T.nycUndraw)),
-    ...schedule(city.windows, phase(0.5, 1, T.nycDraw), phase(0, 0.5, T.nycUndraw)),
+    ...schedule(city.outlines, phase(0, 0.65, T.nycDraw), T.nycUndraw),
+    ...schedule(city.windows, phase(0.5, 1, T.nycDraw), T.nycUndraw),
   ];
   const sfInk = [
-    ...schedule(bridge.water, phase(0, 0.2, T.sfDraw), phase(0.8, 1, T.sfUndraw)),
-    ...schedule(bridge.poles, phase(0.18, 0.72, T.sfDraw), phase(0.25, 0.85, T.sfUndraw)),
-    ...schedule(bridge.arch, phase(0.7, 1, T.sfDraw), phase(0, 0.3, T.sfUndraw)),
+    ...schedule(bridge.water, phase(0, 0.2, T.sfDraw), T.sfUndraw),
+    ...schedule(bridge.poles, phase(0.18, 0.72, T.sfDraw), T.sfUndraw),
+    ...schedule(bridge.arch, phase(0.7, 1, T.sfDraw), T.sfUndraw),
   ];
   const MARCH = 15; // px per second the dashes travel, one dash-plus-gap period per second
   let start = performance.now();
