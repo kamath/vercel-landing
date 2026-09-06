@@ -22,9 +22,10 @@ const PAD = 8; // room around each block for doodles that overshoot the text
 const GUTTER_COLS = 1; // blank cells kept to the right of a block
 const GUTTER_ROWS = 1; // blank lines kept below a block
 const MAX_PAGE = 1280; // widest the written page gets; a wider window just gets more margin
+const PHONE = 640; // narrower than this, the photos come off the page; the doodles stay
 
 function gridSize(width: number): number {
-  return width < 640 ? 26 : width < 1100 ? 30 : 34;
+  return width < PHONE ? 26 : width < 1100 ? 30 : 34;
 }
 
 function fontOf(px: number): string {
@@ -230,7 +231,8 @@ class NoteView {
         }
         right = Math.max(right, indent + line.width);
         if (run.item.strike) doodles.append(strike(indent, indent + line.width, baseline - run.size * 0.22, seed));
-        if (run.item.underline || run.item.href) doodles.append(underline(indent, indent + line.width, baseline + run.size * 0.16, seed));
+        if (run.item.underline || run.item.href)
+          doodles.append(underline(indent, indent + line.width, baseline + run.size * 0.16, seed, run.item.underline === 'twice' ? 2 : 1));
       });
       if (run.item.href) {
         const a = svgEl('a', { href: run.item.href, target: '_blank', rel: 'noopener' });
@@ -464,9 +466,12 @@ async function main(): Promise<void> {
     page.style.setProperty('--oy', `${margin}px`);
 
     const t0 = performance.now();
-    for (const v of views) v.prepare(grid, cols * grid);
-    const rows = pack(views, cols, grid);
-    for (const v of views) {
+    // On a phone there is no room for the prints; only the written sections and the drawings are laid out.
+    const shown = width < PHONE ? views.filter((v) => v.note.figure?.kind !== 'photo') : views;
+    for (const v of views) v.el.hidden = !shown.includes(v);
+    for (const v of shown) v.prepare(grid, cols * grid);
+    const rows = pack(shown, cols, grid);
+    for (const v of shown) {
       const [cx, cy] = v.el.dataset.cell!.split(',').map(Number);
       // The SVG's viewBox starts PAD before the text origin, so back the element up by PAD to land on the rule.
       v.el.style.left = `${left + cx * grid - PAD}px`;
