@@ -12,10 +12,12 @@ export interface NoteItem {
   size?: number;
   /** Makes the whole item a link. */
   href?: string;
+  /** Inline links: only these substrings are clickable and underlined. */
+  links?: { text: string; href: string }[];
 }
 
 export type Figure =
-  | { kind: 'arc'; from: string; to: string; caption: string }
+  | { kind: 'arc'; from: string; to: string }
   | { kind: 'boxes'; a: string; b: string; label: string }
   | { kind: 'rocket' };
 
@@ -34,30 +36,32 @@ export interface Note {
 const L = (text: string, extra: Partial<NoteItem> = {}): NoteItem => ({ text, ...extra });
 const X = (text: string, extra: Partial<NoteItem> = {}): NoteItem => ({ text, strike: true, ...extra });
 const SUB = (text: string, extra: Partial<NoteItem> = {}): NoteItem => ({ text, indent: 1, ...extra });
+const link = (text: string, href: string) => ({ text, href });
 
 export const notes: Note[] = [
   { id: 'date', items: [L('09/05/2026')], em: 8 },
-  { id: 'name', items: [L('Anirudh Kamath', { size: 1.25 }), L('SF. often NYC.')], em: 14 },
-  { id: 'flight', items: [], figure: { kind: 'arc', from: 'SF', to: 'NYC', caption: 'back and forth' }, em: 12 },
+  { id: 'name', items: [L('Anirudh Kamath', { size: 1.25 })], em: 14 },
+  { id: 'flight', items: [], figure: { kind: 'arc', from: 'SF', to: 'NYC' }, em: 12 },
   {
     id: 'now',
     items: [
       L('now:'),
-      SUB('1) agent identity @ arcade.dev', { href: 'https://arcade.dev' }),
-      SUB('2) cooking → @currychefwiththepot', { href: 'https://www.instagram.com/currychefwiththepot' }),
-      SUB('3)'),
+      SUB('- enterprise ai governance @ arcade.dev', { links: [link('arcade.dev', 'https://arcade.dev')] }),
+      SUB('- cooking → @currychefwiththepot', { links: [link('@currychefwiththepot', 'https://www.instagram.com/currychefwiththepot')] }),
     ],
-    em: 16,
+    em: 17,
   },
   {
     id: 'before',
     items: [
       L('before:'),
-      SUB('- Whatnot: 2nd ML hire, 2021-23', { href: 'https://www.whatnot.com' }),
-      SUB('- Stagehand @ Browserbase: tech lead + #1 contributor. in prod at Clay, Ramp, Lovable. 1m+ weekly npm downloads', {
-        href: 'https://github.com/browserbase/stagehand',
+      SUB('1) Whatnot: 2nd ML hire, 2021-23', { links: [link('Whatnot', 'https://www.whatnot.com')] }),
+      SUB('2) Stagehand @ Browserbase: tech lead + #1 contributor. in prod at Clay, Ramp, Lovable. 1m+ weekly npm downloads', {
+        links: [link('Stagehand', 'https://github.com/browserbase/stagehand')],
       }),
-      SUB('- Smithery: co-founded. first open agent identity product, MCP identity for 300k+ people', { href: 'https://smithery.ai' }),
+      SUB('3) Smithery: co-founded. first open agent identity product, MCP identity for 300k+ people', {
+        links: [link('Smithery', 'https://smithery.ai')],
+      }),
       SUB('→ acquired by arcade.dev, 07/2026', { indent: 2 }),
     ],
     em: 21,
@@ -73,30 +77,28 @@ export const notes: Note[] = [
     items: [L('this notebook: 2 pages used.'), L('if I wrote it down, it mattered.'), L('write less → rabbithole less → actually do it')],
     em: 17,
   },
-  { id: 'lists', items: [L('lists are always shorter than I think'), SUB('see 3) above')], em: 15 },
   {
     id: 'humanity',
-    items: [
-      L('believe in humanity', { underline: true }),
-      SUB('- rockets'),
-      SUB('- cured a pandemic in ~1 yr'),
-      SUB('- machines that emulate us'),
-      SUB('→ no problem is too big'),
-    ],
+    items: [L('humans rock', { underline: true }), SUB('- math'), SUB('- cured a pandemic'), SUB('- machines that think')],
     brace: [1, 3],
-    em: 13,
+    em: 12,
   },
   { id: 'rocket', items: [], figure: { kind: 'rocket' }, em: 6 },
   {
     id: 'ai',
-    items: [L('AI is coming regardless'), SUB('→ has to serve people, not replace them'), SUB('→ I trust us enough to make that true')],
-    em: 17,
+    items: [L('AI should not and will not replace humans'), SUB('→ embrace our individual humanity')],
+    em: 18,
   },
-  { id: 'serves', items: [], figure: { kind: 'boxes', a: 'AI', b: 'people', label: 'serves' }, em: 11 },
+  { id: 'with', items: [], figure: { kind: 'boxes', a: 'AI', b: 'humans', label: 'with, not instead of' }, em: 15 },
   {
-    id: 'oss',
-    items: [L('open source, always', { underline: true }), SUB('- stagehand'), SUB('- smithery'), SUB('- this page + the font')],
-    em: 12,
+    id: 'links',
+    items: [
+      L('links:'),
+      SUB('- twitter/x: @kamathematic', { links: [link('@kamathematic', 'https://x.com/kamathematic')] }),
+      SUB('- github: kamath', { links: [link('kamath', 'https://github.com/kamath')] }),
+      SUB('- linkedin: /in/kamath', { links: [link('/in/kamath', 'https://www.linkedin.com/in/kamath')] }),
+    ],
+    em: 13,
   },
   {
     id: 'hand',

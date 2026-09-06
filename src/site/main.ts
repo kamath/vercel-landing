@@ -101,11 +101,35 @@ class NoteView {
       lines.forEach((line, i) => {
         // Letters sit on the horizontal rule: the baseline is the bottom of the cell, nudged up a touch.
         const baseline = y + lh * (i + 1) - grid * 0.12;
-        const span = svgEl('tspan', { x: indent, y: baseline });
-        span.textContent = line.text;
-        text.append(span);
-        right = Math.max(right, indent + line.width);
         const seed = `${this.note.id}:${idx}:${i}`;
+        // Split the line around any inline links so only the linked words are clickable and underlined.
+        let cursor = 0;
+        let x = indent;
+        const pieces: { str: string; href?: string }[] = [];
+        for (const link of run.item.links ?? []) {
+          const at = line.text.indexOf(link.text, cursor);
+          if (at < 0) continue;
+          if (at > cursor) pieces.push({ str: line.text.slice(cursor, at) });
+          pieces.push({ str: link.text, href: link.href });
+          cursor = at + link.text.length;
+        }
+        if (cursor < line.text.length) pieces.push({ str: line.text.slice(cursor) });
+        for (const piece of pieces) {
+          const span = svgEl('tspan', pieces[0] === piece ? { x, y: baseline } : {});
+          span.textContent = piece.str;
+          if (piece.href) {
+            const a = svgEl('a', { href: piece.href, target: '_blank', rel: 'noopener' });
+            a.append(span);
+            text.append(a);
+            const w = labelWidth(piece.str, run.size);
+            doodles.append(underline(x, x + w, baseline + run.size * 0.16, `${seed}:${piece.str}`));
+            x += w;
+          } else {
+            text.append(span);
+            x += labelWidth(piece.str, run.size);
+          }
+        }
+        right = Math.max(right, indent + line.width);
         if (run.item.strike) doodles.append(strike(indent, indent + line.width, baseline - run.size * 0.22, seed));
         if (run.item.underline || run.item.href) doodles.append(underline(indent, indent + line.width, baseline + run.size * 0.16, seed));
       });
@@ -144,48 +168,52 @@ class NoteView {
 // ----------------------------------------------------------------------------- figures
 
 function labelWidth(text: string, size: number): number {
-  return measureNaturalWidth(prepareWithSegments(text, fontOf(size)));
+  // pre-wrap keeps leading and trailing spaces, which matter when measuring the prefix before an inline link.
+  return measureNaturalWidth(prepareWithSegments(text, fontOf(size), { whiteSpace: 'pre-wrap' }));
 }
 
 function drawFigure(svg: SVGSVGElement, fig: Figure, w: number, grid: number, seed: string): { w: number; h: number } {
   const size = grid * 0.78;
 
   if (fig.kind === 'arc') {
-    const h = w * 0.55;
-    const from: XY = { x: w * 0.06, y: h * 0.72 };
-    const to: XY = { x: w * 0.94, y: h * 0.7 };
-    const ctrl: XY = { x: w * 0.5, y: -h * 0.15 };
+    const h = w * 0.5;
+    const from: XY = { x: w * 0.06, y: h * 0.78 };
+    const to: XY = { x: w * 0.94, y: h * 0.76 };
+    const ctrl: XY = { x: w * 0.5, y: -h * 0.1 };
     const path = ink(`M${from.x} ${from.y} Q${ctrl.x} ${ctrl.y} ${to.x} ${to.y}`, 2);
     path.setAttribute('stroke-dasharray', '7 8');
     svg.append(path);
-    // Plane at 45% along the curve, rotated to the tangent.
-    const t = 0.45;
-    const q = (a: number, b: number, c: number) => (1 - t) * (1 - t) * a + 2 * (1 - t) * t * b + t * t * c;
-    const px = q(from.x, ctrl.x, to.x);
-    const py = q(from.y, ctrl.y, to.y);
-    const dx = 2 * (1 - t) * (ctrl.x - from.x) + 2 * t * (to.x - ctrl.x);
-    const dy = 2 * (1 - t) * (ctrl.y - from.y) + 2 * t * (to.y - ctrl.y);
-    const ang = (Math.atan2(dy, dx) * 180) / Math.PI;
     const s = size * 0.55;
-    const plane = ink(
-      wobbly(
-        [
-          { x: -s, y: 0 }, { x: s * 0.9, y: 0 }, { x: s * 0.2, y: -s * 0.75 }, { x: -s * 0.2, y: -s * 0.75 }, { x: -s * 0.05, y: 0 },
-          { x: -s * 0.2, y: s * 0.75 }, { x: s * 0.2, y: s * 0.75 }, { x: s * 0.9, y: 0 },
-        ],
-        `${seed}:plane`,
-        0.5,
-        6,
-      ),
-      2,
-    );
-    plane.setAttribute('transform', `translate(${px.toFixed(1)} ${py.toFixed(1)}) rotate(${ang.toFixed(1)})`);
-    svg.append(plane);
+    // One plane each way, riding the arc, the return flight a lane below.
+    const plane = (t: number, reverse: boolean) => {
+      const q = (a: number, b: number, c: number) => (1 - t) * (1 - t) * a + 2 * (1 - t) * t * b + t * t * c;
+      const dx = 2 * (1 - t) * (ctrl.x - from.x) + 2 * t * (to.x - ctrl.x);
+      const dy = 2 * (1 - t) * (ctrl.y - from.y) + 2 * t * (to.y - ctrl.y);
+      const len = Math.hypot(dx, dy) || 1;
+      const lane = reverse ? size * 0.75 : 0;
+      const px = q(from.x, ctrl.x, to.x) - (dy / len) * lane;
+      const py = q(from.y, ctrl.y, to.y) + (dx / len) * lane;
+      const ang = (Math.atan2(dy, dx) * 180) / Math.PI + (reverse ? 180 : 0);
+      const el = ink(
+        wobbly(
+          [
+            { x: -s, y: 0 }, { x: s * 0.9, y: 0 }, { x: s * 0.2, y: -s * 0.75 }, { x: -s * 0.2, y: -s * 0.75 }, { x: -s * 0.05, y: 0 },
+            { x: -s * 0.2, y: s * 0.75 }, { x: s * 0.2, y: s * 0.75 }, { x: s * 0.9, y: 0 },
+          ],
+          `${seed}:plane${reverse ? 'r' : ''}`,
+          0.5,
+          6,
+        ),
+        2,
+      );
+      el.setAttribute('transform', `translate(${px.toFixed(1)} ${py.toFixed(1)}) rotate(${ang.toFixed(1)})`);
+      return el;
+    };
+    svg.append(plane(0.4, false), plane(0.62, true));
     svg.append(textEl(from.x - size * 0.3, from.y + size * 0.95, size * 0.85, fig.from));
     const toW = labelWidth(fig.to, size * 0.85);
     svg.append(textEl(to.x - toW + size * 0.3, to.y + size * 0.95, size * 0.85, fig.to));
-    svg.append(textEl(w * 0.34, h * 0.98, size * 0.75, fig.caption));
-    return { w, h: h + size * 0.6 };
+    return { w, h: from.y + size * 1.05 };
   }
 
   if (fig.kind === 'boxes') {
@@ -194,7 +222,8 @@ function drawFigure(svg: SVGSVGElement, fig: Figure, w: number, grid: number, se
     const boxH = grid * 1.4;
     const aW = labelWidth(fig.a, s) + padX * 2;
     const bW = labelWidth(fig.b, s) + padX * 2;
-    const gap = Math.max(s * 3, w - aW - bW);
+    const lw = labelWidth(fig.label, s * 0.8);
+    const gap = Math.max(s * 3, lw + s * 1.2, w - aW - bW);
     const y0 = grid * 0.3;
     svg.append(box(0, y0, aW, boxH, `${seed}:a`));
     svg.append(textEl(padX, y0 + boxH * 0.72, s, fig.a));
@@ -202,7 +231,6 @@ function drawFigure(svg: SVGSVGElement, fig: Figure, w: number, grid: number, se
     svg.append(box(bx, y0 + 3, bW, boxH, `${seed}:b`));
     svg.append(textEl(bx + padX, y0 + boxH * 0.72 + 3, s, fig.b));
     svg.append(arrow({ x: aW + 8, y: y0 + boxH * 0.5 }, { x: bx - 8, y: y0 + boxH * 0.52 }, `${seed}:arrow`, 0.08));
-    const lw = labelWidth(fig.label, s * 0.8);
     svg.append(textEl(aW + gap / 2 - lw / 2, y0 + boxH * 0.5 - s * 0.35, s * 0.8, fig.label));
     return { w: aW + gap + bW, h: y0 + boxH + grid * 0.3 };
   }
