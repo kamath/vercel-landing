@@ -75,11 +75,11 @@ export const notes: Note[] = [
     id: 'notebook',
     items: [
       L('my handwriting is neat irl! (calligraphy too)'),
-      L('this font is traced from it, with alternates and ligatures so nothing repeats exactly.'),
-      L('I only used two pages in my notebook.'),
+      L('I modeled it as a reusable font and added contextual alternates and ligatures so repeated letters never look stamped.', { gap: 1 }),
+      L('I also write small (but neat!) scribbles: as little space and as few words as possible. I only used two pages in my notebook.'),
       L('write less → rabbithole less'),
     ],
-    em: 19,
+    em: 20,
   },
   {
     id: 'humanity',
