@@ -165,7 +165,7 @@ function skyline(W: number, H: number, seed: string): { els: SVGPathElement[]; s
     { x, y: 0 }, { x: x + w * 0.06, y: -h }, { x: x + w * 0.5, y: -h }, { x: x + w * 0.5, y: -h - H * 0.3 },
     { x: x + w * 0.5, y: -h }, { x: x + w * 0.94, y: -h }, { x: x + w, y: 0 },
   ];
-  const shapes = [chrysler(0.02 * W, 0.24 * W, 0.62 * H), empire(0.36 * W, 0.26 * W, 0.78 * H), wtc(0.7 * W, 0.28 * W, 0.86 * H)];
+  const shapes = [chrysler(0.02 * W, 0.24 * W, 0.46 * H), empire(0.36 * W, 0.26 * W, 0.82 * H), wtc(0.7 * W, 0.28 * W, 0.86 * H)];
   return { shapes, els: shapes.map((pts, i) => solid(ink(wobbly(pts, `${seed}:b${i}`, 0.5, 5), 1.7))) };
 }
 
@@ -290,7 +290,7 @@ export function drawFlight(
   nyc.append(...city.els);
   const sfOrigin: XY = { x: from.x, y: from.y };
   const sf = svgEl('g', { transform: `translate(${sfOrigin.x.toFixed(1)} ${sfOrigin.y.toFixed(1)})` });
-  const bridge = goldenGate(cityW * 1.1, cityH * 0.9, `${seed}:sf`);
+  const bridge = goldenGate(cityW * 1.1, cityH * 0.7, `${seed}:sf`);
   sf.append(bridge.fill, ...bridge.water, ...bridge.poles, ...bridge.arch);
   svg.append(nyc, sf);
 
@@ -348,7 +348,11 @@ export function drawFlight(
     ...schedule(bridge.water, phase(0.38, 0.52, sfDraw), sfUndraw, 1),
     ...schedule(bridge.arch, phase(0.5, 1, sfDraw), sfUndraw, 1),
   ];
-  const timeline: Record<string, number | Win> = { period, fly1, meetNYC, nycDraw, nycUndraw, fly2, meetSF, sfDraw, sfUndraw };
+  const timeline: Record<string, number | Win> = {
+    period, fly1, meetNYC, nycDraw, nycUndraw, fly2, meetSF, sfDraw, sfUndraw,
+    nycHitBuilding: hits.length > 0 ? hits[0].i : -1, // 0 Chrysler, 1 Empire State, 2 One WTC
+    sfHitAlongSpan: cableHit ? cableHit.alongB / measured(bridge.cable).len : -1, // 0 = left anchor, 1 = right anchor
+  };
 
   let start = performance.now();
   let raf = 0;
