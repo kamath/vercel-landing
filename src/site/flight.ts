@@ -4,10 +4,12 @@
 // building's foot. The flight is a shooting star: only a short tail follows the pen, so the arc is never seen whole.
 // A city holds once drawn, then collapses: an eraser goes over it in its own order (the bridge: the road beyond the
 // right pole out into the arch, the arch right to left, the right pole's top and bottom into its crossing with the
-// road, then the road from both sides and the left pole's top into that pole's crossing, then the rest of the left
-// pole downwards; the skyline: left to right). So: the bridge, its collapse, the star from the bridge's bottom left
-// corner to NYC and the skyline, its collapse, the star from the skyline's bottom right corner back to SF, landing
-// on the top of the left pole and going straight on down it to draw the bridge again, just as before.
+// road, then the road from both sides into the left pole's crossing; the skyline: left to right). The left pole is
+// never erased: the bridge collapses into it, it stands alone a beat, and then it is the shooting star's tail, the
+// star running down the pole, into the bridge's bottom left corner and away in the arc to NYC. So: the bridge, its
+// collapse into the left pole, the star from there to NYC and the skyline, its collapse, the star from the
+// skyline's bottom right corner back to SF, landing on the top of the left pole and going straight on down it to
+// draw the bridge again, just as before.
 // Forever. One clock, one pen speed (the eraser is quicker); a lift takes the time the pen needs to cross the gap.
 
 import { ink, wobbly, type XY } from './doodle.js';
@@ -16,8 +18,7 @@ const SPEED = 0.7; // widths per second the pen moves at, so a drawing takes the
 const HOLD = 1; // seconds a finished city stays before it collapses
 const ERASER = 1.2; // how much faster than the pen the eraser moves
 const PULL = 0.25; // seconds at least for each move of the eraser, so a collapse of short pieces is still seen
-const LAG = 0.1; // seconds the left pole's top hangs back behind the road closing in on it
-const BLANK = 0.3; // seconds of empty page before the star sets off
+const BLANK = 0.3; // seconds the left pole stands alone, all that is left of the bridge, before the star sets off
 const TAIL = 0.15; // the shooting star's tail, as a fraction of the width
 
 const ease = (p: number) => (p < 0.5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2);
@@ -130,21 +131,31 @@ export function drawFlight(
   const to: XY = { x: w * 0.94, y: ground }; // the skyline's right end
 
   // The bridge stands at SF, the skyline at NYC, both on the same ground line.
-  const bridge = goldenGate(w * 0.32, w * 0.14);
+  const bridgeH = w * 0.14;
+  const bridge = goldenGate(w * 0.32, bridgeH);
   const cityW = w * 0.28;
   const cityH = w * 0.17;
   const cityOrigin: XY = { x: to.x - cityW, y: ground };
   const launch: XY = from; // the bridge's bottom left corner
   const poleTop: XY = { x: from.x + bridge.top.x, y: from.y + bridge.top.y };
+  const poleFoot: XY = { x: poleTop.x, y: ground };
   const land: XY = cityOrigin;
   // The flight leaves the bridge's near corner steeply, arches over, and comes down in front of the city. The return
   // flight mirrors it: up from the skyline's far corner, down onto the top of the left pole.
   const corner: XY = to;
-  const arc = (a: XY, b: XY, dir: 1 | -1) =>
-    `M${a.x.toFixed(1)} ${a.y.toFixed(1)} ` +
+  const curve = (a: XY, b: XY, dir: 1 | -1) =>
     `C${(a.x + dir * w * 0.05).toFixed(1)} ${(a.y - h * 0.78).toFixed(1)}, ` +
     `${(b.x - dir * w * 0.14).toFixed(1)} ${(ground - h * 0.9).toFixed(1)}, ` +
     `${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
+  const arc = (a: XY, b: XY, dir: 1 | -1) => `M${a.x.toFixed(1)} ${a.y.toFixed(1)} ${curve(a, b, dir)}`;
+  // Out from SF the star starts as the left pole itself: it runs down the pole, along the ground into the bottom
+  // left corner, and only there sets off in the arc. So the path begins at the top of the pole, and the star's head
+  // opens a tail's length along it, which is exactly what the collapse leaves standing.
+  const round = w * 0.012; // the turn at the pole's foot, taken as a bend rather than a corner
+  const flightOut =
+    `M${poleTop.x.toFixed(1)} ${poleTop.y.toFixed(1)} L${poleFoot.x.toFixed(1)} ${(poleFoot.y - round).toFixed(1)} ` +
+    `Q${poleFoot.x.toFixed(1)} ${poleFoot.y.toFixed(1)} ${(poleFoot.x - round).toFixed(1)} ${poleFoot.y.toFixed(1)} ` +
+    `L${launch.x.toFixed(1)} ${launch.y.toFixed(1)} ${curve(launch, land, 1)}`;
 
   // The strokes, with their end points so a lift between two strokes costs the pen the time to cross the gap.
   const city = shift(skyline(cityW, cityH), cityOrigin);
@@ -153,7 +164,7 @@ export function drawFlight(
       const pts = shift(s.pts, from);
       return { el: ink(wobbly(pts, `${seed}:sf${i}`, s.amp ?? 0.35, 5), s.width), from: pts[0], to: pts[pts.length - 1] };
     }),
-    { el: ink(arc(launch, land, 1), 2), from: launch, to: land },
+    { el: ink(flightOut, 2), from: poleTop, to: land },
     { el: ink(wobbly(city, `${seed}:nyc`, 0.5, 5), 1.7), from: city[0], to: city[city.length - 1] },
     { el: ink(arc(corner, poleTop, -1), 2), from: corner, to: poleTop },
   ];
@@ -202,32 +213,40 @@ export function drawFlight(
     });
     return { pieces, total };
   };
-  const segment = (drawOrder: Step[], eraseGroups: Piece[][]) => {
+  /**
+   * `head0` is how far along the route the pen's head already is when the segment opens: what is on the page before
+   * it moves. `becomes` is a stroke that takes over from another (`was`) as the collapse runs, its head creeping
+   * from `from` to `to` over it, so what the collapse leaves standing is already the star, at the star's own size.
+   */
+  const segment = (drawOrder: Step[], eraseGroups: Piece[][], head0 = 0, becomes?: { i: number; was: number; from: number; to: number }) => {
     const drawn = route(drawOrder);
     const erased = eraseRoute(eraseGroups);
-    const draw = drawn.total / speed;
+    const draw = (drawn.total - head0) / speed;
     const erase = erased.total;
-    return { ...drawn, erased: erased.pieces, draw, erase, length: draw + HOLD + erase + BLANK };
+    return { ...drawn, head0, becomes, erased: erased.pieces, draw, erase, length: draw + HOLD + erase + BLANK };
   };
   const whole = (i: number, back = false): Piece => (back ? { i, from: lens[i], to: 0 } : { i, from: 0, to: lens[i] });
   const bridgeDraw: Step[] = [leftPole, rightPole, road, arch].map((i) => ({ i, back: false }));
   // The eraser over the bridge: the road beyond the right pole, out into the arch; the arch, right to left; the right
-  // pole's top and bottom at once, into its crossing with the road; then the road from both sides and, a touch
-  // later, the left pole's top, into that pole's crossing; then the rest of the left pole, down to its foot.
+  // pole's top and bottom at once, into its crossing with the road; then the road from both sides into its crossing
+  // with the left pole. The left pole is left whole: the bridge collapses into it and it stays to become the star.
   const [r1, r2] = bridge.crossing.road.map((f) => lens[road] * f); // the crossings, along the road
   const poleY = (i: number) => lens[i] * bridge.crossing.pole; // the crossing, down a pole
   const bridgeErase: Piece[][] = [
     [{ i: road, from: r2, to: lens[road] }],
     [whole(arch)],
     [{ i: rightPole, from: 0, to: poleY(rightPole) }, { i: rightPole, from: lens[rightPole], to: poleY(rightPole) }],
-    [{ i: road, from: r2, to: r1 }, { i: road, from: 0, to: r1 }, { i: leftPole, from: 0, to: poleY(leftPole), after: LAG }],
-    [{ i: leftPole, from: poleY(leftPole), to: lens[leftPole] }],
+    [{ i: road, from: r2, to: r1 }, { i: road, from: 0, to: r1 }],
   ];
   const cityErase: Piece[][] = [[whole(nyc)]];
-  const prelude = segment(bridgeDraw, bridgeErase); // the bridge alone, once, at the start
+  // The star sets off with a whole tail behind it, so its head starts a tail's length along the flight path: down
+  // the pole and a touch beyond. Over the collapse the standing pole grows exactly that far, so nothing jumps.
+  const star = w * TAIL;
+  const intoStar = { i: flight, was: leftPole, from: bridgeH, to: star };
+  const prelude = segment(bridgeDraw, bridgeErase, 0, intoStar); // the bridge alone, once, at the start
   const loop = [
-    segment([{ i: flight, back: false }, { i: nyc, back: false }], cityErase), // the star to NYC, then the skyline
-    segment([{ i: flightBack, back: false }, ...bridgeDraw], bridgeErase), // the star back to SF, landing on the left pole, then the bridge as before
+    segment([{ i: flight, back: false }, { i: nyc, back: false }], cityErase, star), // the star, the pole it grew out of, runs on to NYC and draws the skyline
+    segment([{ i: flightBack, back: false }, ...bridgeDraw], bridgeErase, 0, intoStar), // the star back to SF, landing on the left pole, then the bridge as before
   ];
   const period = loop[0].length + loop[1].length;
   /** At second `t`: which segment is on the page, how far the pen's head is along its route, and how many seconds the eraser is into its schedule. */
@@ -239,8 +258,8 @@ export function drawFlight(
       seg = u < loop[0].length ? loop[0] : loop[1];
       if (seg === loop[1]) u -= loop[0].length;
     }
-    const { total, draw, erase } = seg;
-    if (u < draw) return { seg, head: total * pace(u / draw), eraser: 0 };
+    const { total, draw, erase, head0 } = seg;
+    if (u < draw) return { seg, head: head0 + (total - head0) * pace(u / draw), eraser: 0 };
     if (u < draw + HOLD) return { seg, head: total, eraser: 0 };
     if (u < draw + HOLD + erase) return { seg, head: total, eraser: erase * pace((u - draw - HOLD) / erase) };
     return { seg, head: total, eraser: erase };
@@ -279,13 +298,22 @@ export function drawFlight(
       }
       setInk(i, spans);
     }
+    // As the bridge collapses into the left pole, the pole becomes the star: its ink is handed to the flight path,
+    // whose head creeps out to a full tail's length, so the thing left standing is the star, ready to go.
+    if (seg.becomes && eraser > 0) {
+      const { i, was, from, to } = seg.becomes;
+      setInk(was, []);
+      setInk(i, [[0, from + (to - from) * Math.min(1, eraser / seg.erase)]]);
+    }
   };
   const timeline: Record<string, number> = { prelude: prelude.length, period, bridge: prelude.draw, bridgeErase: prelude.erase, out: loop[0].draw, cityErase: loop[0].erase, back: loop[1].draw, hold: HOLD, blank: BLANK };
   const scene = { w, h: ground + size * 1.05, timeline };
 
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (reduced) {
-    els.forEach((_, i) => setInk(i, i === flightBack ? [] : [[0, lens[i]]])); // the whole picture, outbound flight and all
+    // The whole picture: the outbound flight from the corner on, so its run down the pole does not double the pole.
+    const still = bridgeH + Math.hypot(poleFoot.x - launch.x, poleFoot.y - launch.y);
+    els.forEach((_, i) => setInk(i, i === flightBack ? [] : [[i === flight ? still : 0, lens[i]]]));
     return { ...scene, stop: () => {}, pause: () => {}, resume: () => {}, seek: () => {}, frames: () => 0 };
   }
   show(0);
