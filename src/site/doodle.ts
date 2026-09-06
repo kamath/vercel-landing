@@ -53,9 +53,16 @@ export function strike(x1: number, x2: number, y: number, seed: string): SVGPath
   return ink(wobbly([{ x: x1 - 3, y: y + (r() - 0.5) * 3 }, { x: x2 + 4, y: y + (r() - 0.5) * 4 }], seed, 1.1), 2.2);
 }
 
-export function underline(x1: number, x2: number, y: number, seed: string): SVGPathElement {
-  const r = rng(seed + ':u');
-  return ink(wobbly([{ x: x1 - 1, y }, { x: x2 + 3, y: y + (r() - 0.5) * 3 }], seed, 0.9), 1.9);
+/** `laps` is how many times the pen goes under the words; each extra rule sits a little below the last. */
+export function underline(x1: number, x2: number, y: number, seed: string, laps = 1): SVGGElement {
+  const g = svgEl('g');
+  for (let lap = 0; lap < laps; lap++) {
+    const tag = lap === 0 ? '' : String(lap); // the first rule keeps the original seeds, so single underlines are unchanged
+    const r = rng(`${seed}:u${tag}`);
+    const d = lap * 3.5;
+    g.append(ink(wobbly([{ x: x1 - 1, y: y + d }, { x: x2 + 3, y: y + d + (r() - 0.5) * 3 }], `${seed}${tag}`, 0.9), 1.9));
+  }
+  return g;
 }
 
 /** A box whose closing stroke overshoots the start corner, as pen boxes do. */

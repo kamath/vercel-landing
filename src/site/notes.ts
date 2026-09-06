@@ -3,7 +3,7 @@
 export interface NoteItem {
   text: string;
   strike?: boolean;
-  underline?: boolean;
+  underline?: 'once' | 'twice';
   /** Indent in grid cells (first line). */
   indent?: number;
   /** Extra indent for wrapped lines, in grid cells (hanging indent). */
@@ -58,28 +58,37 @@ export const notes: Note[] = [
   {
     id: 'now',
     items: [
-      L('now:'),
+      L('now:', { underline: 'twice' }),
       SUB('→ enterprise identity @ arcade.dev', { links: [link('arcade.dev', 'https://arcade.dev')] }),
       SUB('→ cooking @currychefwiththepot', { links: [link('@currychefwiththepot', 'https://www.instagram.com/currychefwiththepot')] }),
     ],
     em: 17,
   },
+  {
+    id: 'smithery',
+    items: [L('Smithery: co-founded. MCP identity for 300k+ humans. Acquired by arcade.dev.', { links: [link('Smithery', 'https://smithery.ai')] })],
+    em: 16,
+  },
   PHOTO('p-wall', 'great_wall.jpeg', 'The Great Wall running along the ridgeline north of Beijing', 8),
   {
-    id: 'before',
+    id: 'browserbase',
     items: [
-      L('before:'),
-      SUB('→ Smithery: co-founded. MCP identity for 300k+ humans. Acquired by arcade.dev.', { links: [link('Smithery', 'https://smithery.ai')] }),
-      SUB('→ Browserbase: tech lead and co-creator of Stagehand. Used in prod at Clay, Ramp, and Lovable.', {
+      L('Browserbase: tech lead and co-creator of Stagehand. Used in prod at Clay, Ramp, and Lovable.', {
         links: [link('Browserbase', 'https://www.browserbase.com'), link('Stagehand', 'https://github.com/browserbase/stagehand')],
       }),
-      SUB('→ Whatnot: 2nd ML hire. trained, deployed, and maintained prod recsys and experimentation engines', {
+    ],
+    em: 17,
+  },
+  PHOTO('p-halfdome', 'half_dome.jpeg', 'Looking down the face of Half Dome into Yosemite Valley', 8),
+  {
+    id: 'whatnot',
+    items: [
+      L('Whatnot: 2nd ML hire. trained, deployed, and maintained prod recsys and experimentation engines', {
         links: [link('Whatnot', 'https://www.whatnot.com')],
       }),
     ],
-    em: 18,
+    em: 16,
   },
-  PHOTO('p-halfdome', 'half_dome.jpeg', 'Looking down the face of Half Dome into Yosemite Valley', 8),
   PHOTO('p-shivani', 'me_and_shivani.jpeg', 'Shivani and me on the steps of Wat Arun, Bangkok', 7),
   {
     id: 'abbrev',
