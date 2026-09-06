@@ -182,7 +182,7 @@ export async function buildSite(dir: string): Promise<void> {
     if (name.startsWith('.')) continue;
     const size = imageSize(join(IMGS, name));
     if (size === null) throw new Error(`${name}: not a JPEG or PNG, so the page cannot size it`);
-    aspects[`imgs/${name}`] = Math.round((size.w / size.h) * 1000) / 1000;
+    aspects[`imgs/${name}`] = size.w / size.h; // full precision: the print is cut to the photo's exact shape
   }
 
   await esbuild({

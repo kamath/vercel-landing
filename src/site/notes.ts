@@ -88,7 +88,7 @@ export const notes: Note[] = [
     em: 14,
   },
   { id: 'rocket', items: [], figure: { kind: 'rocket' }, em: 6 },
-  PHOTO('p-kofta', 'malai_kofta.jpeg', 'A heart-shaped malai kofta plated with an edible flower, next to a glass of white wine', 7),
+  PHOTO('p-kofta', 'malai_kofta.jpeg', 'A heart-shaped malai kofta in a black bowl, sauced and topped with an edible flower', 7),
   {
     id: 'links',
     items: [

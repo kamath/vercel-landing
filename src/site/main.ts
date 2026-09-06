@@ -292,7 +292,7 @@ const matOf = (grid: number) => Math.max(4, Math.round(grid * 0.2));
 
 function photoSize(fig: Extract<Figure, { kind: 'photo' }>, w: number, grid: number): { w: number; h: number } {
   const mat = matOf(grid);
-  return { w, h: Math.round((w - mat * 2) / aspectOf(fig.src)) + mat * 2 };
+  return { w, h: (w - mat * 2) / aspectOf(fig.src) + mat * 2 };
 }
 
 /** A print stuck onto the page: the photo sits on a white border, tilted a few degrees. */
@@ -300,7 +300,7 @@ function drawPhoto(svg: SVGSVGElement, fig: Extract<Figure, { kind: 'photo' }>, 
   const r = rng(`photo:${seed}`);
   const mat = matOf(grid);
   const imgW = w - mat * 2;
-  const imgH = Math.round(imgW / aspectOf(fig.src));
+  const imgH = imgW / aspectOf(fig.src); // never rounded: rounding here would crop the photo to fit
   const printH = imgH + mat * 2;
 
   const g = svgEl('g', { class: 'photo', transform: `rotate(${((r() - 0.5) * 5).toFixed(2)} ${(w / 2).toFixed(1)} ${(printH / 2).toFixed(1)})` });
