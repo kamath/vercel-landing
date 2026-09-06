@@ -88,7 +88,7 @@ export const notes: Note[] = [
     em: 14,
   },
   { id: 'rocket', items: [], figure: { kind: 'rocket' }, em: 6 },
-  PHOTO('p-wedding', 'brandon_wedding.jpeg', "Five of us in a mirror selfie at Brandon's wedding", 7),
+  PHOTO('p-kofta', 'malai_kofta.jpeg', 'A heart-shaped malai kofta plated with an edible flower, next to a glass of white wine', 7),
   {
     id: 'links',
     items: [
