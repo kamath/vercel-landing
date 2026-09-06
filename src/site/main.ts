@@ -535,14 +535,14 @@ async function main(): Promise<void> {
   new ResizeObserver(relayout).observe(page);
   doLayout();
 
-  // A click anywhere but on a link doodles there: the next sketch in turn is pinned to that cell and the rest of
+  // A click anywhere but on a link doodles there: a sketch picked at random is pinned to that cell and the rest of
   // the page makes room. Only the new note is measured and drawn; every other section keeps its rendering and just moves.
   let doodled = 0;
   const addDoodle = (x: number, y: number) => {
     const { grid, left, margin } = geometry;
     if (grid === 0) return;
     const n = doodled++;
-    const view = new NoteView({ id: `doodle-${n}`, items: [], figure: { kind: SKETCHES[n % SKETCHES.length] }, em: 3, pin: { col: Math.floor((x - left) / grid), row: Math.floor((y - margin) / grid) } });
+    const view = new NoteView({ id: `doodle-${n}`, items: [], figure: { kind: SKETCHES[Math.floor(Math.random() * SKETCHES.length)] }, em: 3, pin: { col: Math.floor((x - left) / grid), row: Math.floor((y - margin) / grid) } });
     view.fresh = true;
     view.el.style.left = `${x}px`; // starts under the pointer and slides onto the grid
     view.el.style.top = `${y}px`;
