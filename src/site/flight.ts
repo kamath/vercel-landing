@@ -82,14 +82,14 @@ function drawingOpacity(t: number, draw: Win, undraw: Win, period: number): numb
 }
 
 /**
- * How much a city hides the dotted line: once both the line has arrived and the city is drawn, the line fades
- * out over the city's hold; it stays hidden while the city fades, and is clear again the moment the city is gone
- * (the next trip then starts from nothing). May wrap the loop.
+ * How much a city hides the dotted line: from the moment the pens meet, the line fades while its tip keeps
+ * travelling, and is gone as it arrives; it stays hidden while the city holds and fades, and is clear again the
+ * moment the city is gone (the next trip then starts from nothing). May wrap the loop.
  */
-function lineHidden(t: number, arrive: number, drawEnd: number, undraw: Win, period: number): number {
-  const rampStart = Math.max(arrive, drawEnd);
+function lineHidden(t: number, meet: number, arrive: number, undraw: Win, period: number): number {
+  const rampStart = meet;
   const tt = (t - rampStart + period) % period;
-  const rampLen = Math.max(0.05, undraw[0] - rampStart);
+  const rampLen = Math.max(0.05, arrive - rampStart);
   const clearAt = (undraw[1] - rampStart + period) % period;
   if (tt < rampLen) return ease(tt / rampLen);
   if (tt < clearAt) return 1;
@@ -371,11 +371,11 @@ export function drawFlight(
     sf.style.opacity = `${sfFade}`;
     setProgress(nycInk, t, period);
     bridge.fill.style.fillOpacity = `${Math.min(1, setProgress(sfInk, t, period) * sfFade * 1.5)}`;
-    // The line stays fully visible until it has arrived (so the pens meet in plain sight), then fades while the
-    // city finishes, stays hidden while the city holds, and returns as the city fades.
+    // The line is fully visible up to the crossing, then fades as it finishes arriving; it stays hidden while the
+    // city holds and fades, and the next trip starts once the city is gone.
     const hidden = Math.max(
-      lineHidden(t, fly1[1], nycDraw[1], nycUndraw, period),
-      lineHidden(t, fly2[1], sfDraw[1], sfUndraw, period),
+      lineHidden(t, meetNYC, fly1[1], nycUndraw, period),
+      lineHidden(t, meetSF, fly2[1], sfUndraw, period),
     );
     arc.style.opacity = `${1 - hidden}`;
     raf = requestAnimationFrame(frame);
