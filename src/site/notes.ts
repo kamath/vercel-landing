@@ -45,8 +45,8 @@ export const notes: Note[] = [
     id: 'now',
     items: [
       L('now:'),
-      SUB('- Enterprise agent identity @ arcade.dev', { links: [link('arcade.dev', 'https://arcade.dev')] }),
-      SUB('- cooking @currychefwiththepot', { links: [link('@currychefwiththepot', 'https://www.instagram.com/currychefwiththepot')] }),
+      SUB('→ Enterprise agent identity @ arcade.dev', { links: [link('arcade.dev', 'https://arcade.dev')] }),
+      SUB('→ cooking @currychefwiththepot', { links: [link('@currychefwiththepot', 'https://www.instagram.com/currychefwiththepot')] }),
     ],
     em: 17,
   },
@@ -54,11 +54,11 @@ export const notes: Note[] = [
     id: 'before',
     items: [
       L('before:'),
-      SUB('1) Smithery: co-founded. MCP identity for 300k+ humans. Acquired by arcade.dev.', { links: [link('Smithery', 'https://smithery.ai')] }),
-      SUB('2) Browserbase: tech lead and co-creator of Stagehand. Used in prod at Clay, Ramp, and Lovable.', {
+      SUB('→ Smithery: co-founded. MCP identity for 300k+ humans. Acquired by arcade.dev.', { links: [link('Smithery', 'https://smithery.ai')] }),
+      SUB('→ Browserbase: tech lead and co-creator of Stagehand. Used in prod at Clay, Ramp, and Lovable.', {
         links: [link('Browserbase', 'https://www.browserbase.com'), link('Stagehand', 'https://github.com/browserbase/stagehand')],
       }),
-      SUB('3) Whatnot: 2nd ML hire. trained, deployed, and maintained prod recsys and experimentation engines', {
+      SUB('→ Whatnot: 2nd ML hire. trained, deployed, and maintained prod recsys and experimentation engines', {
         links: [link('Whatnot', 'https://www.whatnot.com')],
       }),
     ],
