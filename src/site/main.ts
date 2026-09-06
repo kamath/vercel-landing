@@ -231,8 +231,9 @@ class NoteView {
         }
         right = Math.max(right, indent + line.width);
         if (run.item.strike) doodles.append(strike(indent, indent + line.width, baseline - run.size * 0.22, seed));
-        if (run.item.underline || run.item.href)
-          doodles.append(underline(indent, indent + line.width, baseline + run.size * 0.16, seed, run.item.underline === 'twice' ? 2 : 1));
+        // A linked item is underlined once, as every link is, unless it says otherwise.
+        const rule = run.item.underline ?? (run.item.href ? 'once' : 'never');
+        if (rule !== 'never') doodles.append(underline(indent, indent + line.width, baseline + run.size * 0.16, seed, rule === 'twice' ? 2 : 1));
       });
       if (run.item.href) {
         const a = svgEl('a', { href: run.item.href, target: '_blank', rel: 'noopener' });

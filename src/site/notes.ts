@@ -3,7 +3,8 @@
 export interface NoteItem {
   text: string;
   strike?: boolean;
-  underline?: 'once' | 'twice';
+  /** 'never' keeps the pen off an item that is otherwise underlined, such as a link. */
+  underline?: 'once' | 'twice' | 'never';
   /** Indent in grid cells (first line). */
   indent?: number;
   /** Extra indent for wrapped lines, in grid cells (hanging indent). */
@@ -57,7 +58,7 @@ export const notes: Note[] = [
   { id: 'name', items: [L('Anirudh Kamath', { size: 1.25 })], em: 14 },
   {
     id: 'now',
-    items: [L('now: enterprise identity @ arcade.dev', { nowrap: true, links: [link('arcade.dev', 'https://arcade.dev')] })],
+    items: [L('now: enterprise identity @ arcade.dev', { nowrap: true, href: 'https://arcade.dev', underline: 'never' })],
     atLeft: true, // the first thing read after the name, always on its own line under it
     boxed: 'twice',
     em: 17,
