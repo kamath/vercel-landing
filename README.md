@@ -1,4 +1,4 @@
-# Notebook Hand
+# Anirudh's Notebook
 
 An OpenType (CFF) handwriting font built from the letterforms in Anirudh's notebook. Everything is TypeScript, run with pnpm.
 
