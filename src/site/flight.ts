@@ -7,7 +7,7 @@
 import { ink, svgEl, wobbly, type XY } from './doodle.js';
 
 const FLY = 3.6; // seconds for the line to draw itself across
-const HOLD = 1.2; // seconds a finished city stays before fading
+const HOLD = 1.2; // seconds a finished city stays (while the dotted line fades out) before fading itself
 const FADE = 0.7; // seconds a city takes to fade out
 const NYC_DRAW = 1.1; // seconds the skyline takes to draw
 const SF_DRAW = 1.6; // seconds the bridge takes to draw (poles, water, then the arch over the back half)
@@ -82,17 +82,17 @@ function drawingOpacity(t: number, draw: Win, undraw: Win, period: number): numb
 }
 
 /**
- * How much a city hides the dotted line: ramps up from the line's arrival to the end of the city's draw window,
- * stays while the city holds, and ramps back down as the city fades. Zero otherwise (may wrap the loop).
+ * How much a city hides the dotted line: once both the line has arrived and the city is drawn, the line fades
+ * out over the city's hold; it stays hidden while the city fades, and is clear again the moment the city is gone
+ * (the next trip then starts from nothing). May wrap the loop.
  */
 function lineHidden(t: number, arrive: number, drawEnd: number, undraw: Win, period: number): number {
-  const tt = (t - arrive + period) % period;
-  const rampLen = Math.max(0.05, drawEnd - arrive);
-  const undrawAt = (undraw[0] - arrive + period) % period;
-  const undrawLen = undraw[1] - undraw[0];
+  const rampStart = Math.max(arrive, drawEnd);
+  const tt = (t - rampStart + period) % period;
+  const rampLen = Math.max(0.05, undraw[0] - rampStart);
+  const clearAt = (undraw[1] - rampStart + period) % period;
   if (tt < rampLen) return ease(tt / rampLen);
-  if (tt < undrawAt) return 1;
-  if (tt < undrawAt + undrawLen) return 1 - ease((tt - undrawAt) / undrawLen);
+  if (tt < clearAt) return 1;
   return 0;
 }
 
@@ -319,7 +319,7 @@ export function drawFlight(
   const nycUndraw: Win = [nycDraw[1] + HOLD, nycDraw[1] + HOLD + FADE];
   // Homeward: the tip travels from NYC and meets the bridge cable; the arch is the bridge's last stroke and takes
   // the back half of its window.
-  const fly2: Win = [nycUndraw[0], nycUndraw[0] + FLY];
+  const fly2: Win = [nycUndraw[1], nycUndraw[1] + FLY]; // sets off once the skyline is fully gone
   let sfDraw: Win = [fly2[1], fly2[1] + SF_DRAW];
   let meetSF = fly2[1];
   const cableHit = firstCrossing(measured([...arcPts].reverse()), measured(shift(bridge.cable, sfOrigin.x, sfOrigin.y)));
@@ -330,8 +330,8 @@ export function drawFlight(
     const reach = archWin[0] + (archWin[1] - archWin[0]) * easeInv(cableHit.alongB / cableLen);
     sfDraw = [meetSF - reach, meetSF - reach + SF_DRAW];
   }
-  const period = sfDraw[1] + HOLD; // the bridge fades as the next loop's outbound line sets off
-  const sfUndraw: Win = [period, period + FADE]; // wraps: the same as [0, FADE] of the next loop
+  const sfUndraw: Win = [sfDraw[1] + HOLD, sfDraw[1] + HOLD + FADE];
+  const period = sfUndraw[1]; // the next loop's outbound line sets off once the bridge is fully gone
   const phase = (a: number, b: number, [d0, d1]: Win): Win => [d0 + (d1 - d0) * a, d0 + (d1 - d0) * b];
 
   const nycInk = schedule(city.els, nycDraw, nycUndraw);
