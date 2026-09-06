@@ -39,6 +39,8 @@ interface Run {
   /** Cells per line and indent, fixed per grid size. */
   lh: number;
   indent: number;
+  /** Natural single-line width, only for nowrap items. */
+  natural?: number;
 }
 
 interface Cells {
@@ -51,7 +53,10 @@ class NoteView {
   private readonly svg = svgEl('svg');
   private runs: Run[] = [];
   private grid = 0;
+  private prepKey = '';
   private width = -1;
+  /** Narrowest width that keeps every nowrap item on one line. */
+  private minWidth = 0;
   private readonly scale: number;
   private readonly stretch: number;
   /** Block size in grid cells, set by layout(). */
@@ -72,19 +77,31 @@ class NoteView {
   }
 
   /** One-time measurement per grid size; everything after is pure arithmetic until the DOM is written. */
-  prepare(grid: number): void {
-    if (grid === this.grid) return;
+  prepare(grid: number, available: number): void {
+    const hasNowrap = this.note.items.some((i) => i.nowrap);
+    const key = hasNowrap ? `${grid}:${available}` : String(grid);
+    if (key === this.prepKey) return;
+    this.prepKey = key;
     this.grid = grid;
     const base = grid * 0.78 * this.scale;
+    this.minWidth = 0;
     this.runs = this.note.items.map((item) => {
-      const s = Math.round(base * (item.size ?? 1) * 10) / 10;
-      return {
-        item,
-        prepared: prepareWithSegments(item.text, fontOf(s)),
-        size: s,
-        lh: grid * Math.max(1, Math.ceil((item.size ?? 1) - 0.3)),
-        indent: (item.indent ?? 0) * grid,
-      };
+      let s = Math.round(base * (item.size ?? 1) * 10) / 10;
+      const indent = (item.indent ?? 0) * grid;
+      let prepared = prepareWithSegments(item.text, fontOf(s));
+      let natural: number | undefined;
+      if (item.nowrap) {
+        natural = measureNaturalWidth(prepared);
+        const limit = available - indent - PAD * 2 - 4;
+        if (natural > limit) {
+          // Too wide for the paper: shrink this line rather than break it.
+          s = Math.floor(s * (limit / natural) * 10) / 10;
+          prepared = prepareWithSegments(item.text, fontOf(s));
+          natural = measureNaturalWidth(prepared);
+        }
+        this.minWidth = Math.max(this.minWidth, indent + natural + 2);
+      }
+      return { item, prepared, size: s, lh: grid * Math.max(1, Math.ceil((item.size ?? 1) - 0.3)), indent, natural };
     });
     this.width = -1;
   }
@@ -92,7 +109,12 @@ class NoteView {
   /** The width this section would like, given the paper width. */
   preferredWidth(available: number): number {
     const size = this.grid * 0.78 * this.scale;
-    return Math.max(3 * this.grid, Math.min(available - PAD * 2, (this.note.em ?? 16) * size * this.stretch));
+    return Math.max(3 * this.grid, this.minWidth, Math.min(available - PAD * 2, (this.note.em ?? 16) * size * this.stretch));
+  }
+
+  /** Narrowest width this section may be squeezed to. */
+  narrowest(pref: number): number {
+    return Math.max(4 * this.grid, this.minWidth, pref * 0.7);
   }
 
   /** Size in grid cells at a given width, without touching the DOM. */
@@ -105,7 +127,7 @@ class NoteView {
     let y = 0;
     let right = 0;
     for (const run of this.runs) {
-      const stats = measureLineStats(run.prepared, lineWidth(maxW, run.indent));
+      const stats = measureLineStats(run.prepared, run.natural !== undefined ? run.natural + 2 : lineWidth(maxW, run.indent));
       y += stats.lineCount * run.lh + (run.item.gap ?? 0) * grid;
       right = Math.max(right, run.indent + stats.maxLineWidth);
     }
@@ -133,7 +155,7 @@ class NoteView {
 
     this.runs.forEach((run, idx) => {
       const { indent, lh } = run;
-      const { lines } = layoutWithLines(run.prepared, lineWidth(maxW, indent), lh);
+      const { lines } = layoutWithLines(run.prepared, run.natural !== undefined ? run.natural + 2 : lineWidth(maxW, indent), lh);
       tops.push(y);
       const text = svgEl('text', { 'font-family': FAMILY, 'font-size': run.size });
       lines.forEach((line, i) => {
@@ -373,7 +395,7 @@ function pack(views: NoteView[], cols: number, grid: number): number {
   const available = cols * grid;
   for (const v of views) {
     const pref = v.preferredWidth(available);
-    const minW = Math.max(4 * grid, pref * 0.7);
+    const minW = Math.min(pref, v.narrowest(pref)); // always at least one candidate
     let best: { x: number; y: number; w: number; cells: Cells } | null = null;
     for (let w = pref; w >= minW; w -= grid) {
       const cells = v.measure(w);
@@ -408,7 +430,7 @@ async function main(): Promise<void> {
     page.style.setProperty('--origin', `${margin}px`);
 
     const t0 = performance.now();
-    for (const v of views) v.prepare(grid);
+    for (const v of views) v.prepare(grid, cols * grid);
     const rows = pack(views, cols, grid);
     for (const v of views) {
       const [cx, cy] = v.el.dataset.cell!.split(',').map(Number);
@@ -426,7 +448,7 @@ async function main(): Promise<void> {
     pending = requestAnimationFrame(doLayout);
   };
   new ResizeObserver(relayout).observe(page);
-  relayout();
+  doLayout(); // synchronously, so a background tab or prerender still gets a laid-out page
   // Debug hook: window.__notes.timings shows how long the last layouts took.
   (window as unknown as { __notes: unknown }).__notes = { relayout: doLayout, timings };
 }

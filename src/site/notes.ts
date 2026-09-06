@@ -14,6 +14,8 @@ export interface NoteItem {
   href?: string;
   /** Inline links: only these substrings are clickable and underlined. */
   links?: { text: string; href: string }[];
+  /** Never break this item across lines; it shrinks instead if the paper is too narrow. */
+  nowrap?: boolean;
 }
 
 export type Figure = { kind: 'arc'; from: string; to: string } | { kind: 'rocket' };
@@ -74,12 +76,7 @@ export const notes: Note[] = [
   {
     id: 'notebook',
     items: [
-      L('My handwriting is neat irl too, and this website is modeled off my actual notes.'),
-      L(
-        'I traced every letter into a font with a few versions of each, and the font swaps between them as you type so nothing looks stamped. The page then drops each note into the first empty gap it finds, the way a notebook page fills up.',
-        { gap: 1 },
-      ),
-      L("I've also only used a single-digit amount of pages in my notebook, with each page leaving no whitespace for more scattered scribbles of notes."),
+      L("My handwriting is neat irl too, and this website is modeled off my actual notes! I've only used a single-digit amount of pages in my notebook, with each page leaving no additional whitespace for more scattered scribbles."),
     ],
     em: 21,
   },
@@ -87,13 +84,13 @@ export const notes: Note[] = [
     id: 'humanity',
     items: [
       L('humans rock', { underline: true }),
-      SUB('- math'),
+      SUB('- the internet'),
       SUB('- cured a pandemic'),
       SUB('- machines that think', { gap: 1 }),
-      L("AI won't replace us. shouldn't either."),
+      L('AI should not and will not take humanity from us.', { nowrap: true }),
     ],
     brace: [1, 3],
-    em: 14,
+    em: 16,
   },
   { id: 'rocket', items: [], figure: { kind: 'rocket' }, em: 6 },
   {
