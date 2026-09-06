@@ -82,14 +82,14 @@ function drawingOpacity(t: number, draw: Win, undraw: Win, period: number): numb
 }
 
 /**
- * How much a city hides the dotted line: from the moment the pens meet, the line fades while its tip keeps
- * travelling, and is gone as it arrives; it stays hidden while the city holds and fades, and is clear again the
+ * How much a city hides the dotted line: the line arrives at full length and full opacity, then fades over the
+ * city's hold with its dashes still marching; it stays hidden while the city fades, and is clear again the
  * moment the city is gone (the next trip then starts from nothing). May wrap the loop.
  */
-function lineHidden(t: number, meet: number, arrive: number, undraw: Win, period: number): number {
-  const rampStart = meet;
+function lineHidden(t: number, arrive: number, undraw: Win, period: number): number {
+  const rampStart = arrive;
   const tt = (t - rampStart + period) % period;
-  const rampLen = Math.max(0.05, arrive - rampStart);
+  const rampLen = Math.max(0.05, undraw[0] - rampStart);
   const clearAt = (undraw[1] - rampStart + period) % period;
   if (tt < rampLen) return ease(tt / rampLen);
   if (tt < clearAt) return 1;
@@ -364,13 +364,13 @@ export function drawFlight(
       march = -MARCH * (t - fly1[0]);
     } else if (t < fly2[0]) {
       offset = 0;
-      march = -MARCH * FLY;
+      march = -MARCH * (t - fly1[0]); // keeps moving while it fades
     } else if (t < fly2[1]) {
       offset = -arcLen * (1 - ease(between(t, fly2))); // negative: revealed from the NYC end
       march = MARCH * (t - fly2[0]);
     } else {
       offset = 0;
-      march = MARCH * FLY;
+      march = MARCH * (t - fly2[0]);
     }
     reveal.style.strokeDashoffset = `${offset}`;
     arc.style.strokeDashoffset = `${march}`;
@@ -380,11 +380,11 @@ export function drawFlight(
     sf.style.opacity = `${sfFade}`;
     setProgress(nycInk, t, period);
     bridge.fill.style.fillOpacity = `${Math.min(1, setProgress(sfInk, t, period) * sfFade * 1.5)}`;
-    // The line is fully visible up to the crossing, then fades as it finishes arriving; it stays hidden while the
-    // city holds and fades, and the next trip starts once the city is gone.
+    // The full line is visible on arrival, then fades (dashes still marching) while the city holds; it stays hidden
+    // while the city fades, and the next trip starts once the city is gone.
     const hidden = Math.max(
-      lineHidden(t, meetNYC, fly1[1], nycUndraw, period),
-      lineHidden(t, meetSF, fly2[1], sfUndraw, period),
+      lineHidden(t, fly1[1], nycUndraw, period),
+      lineHidden(t, fly2[1], sfUndraw, period),
     );
     arc.style.opacity = `${1 - hidden}`;
     if (running) raf = requestAnimationFrame(frame);

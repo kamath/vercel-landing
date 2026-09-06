@@ -72,18 +72,6 @@ export const notes: Note[] = [
     boxed: true,
     em: 14,
   },
-  {
-    id: 'humanity',
-    items: [
-      L('humans rock', { underline: true }),
-      SUB('- the internet'),
-      SUB('- cured a pandemic'),
-      SUB('- machines that think', { gap: 1 }),
-      L('AI should not and will not take humanity from us.', { nowrap: true }),
-    ],
-    brace: [1, 3],
-    em: 16,
-  },
   { id: 'rocket', items: [], figure: { kind: 'rocket' }, em: 6 },
   {
     id: 'links',
