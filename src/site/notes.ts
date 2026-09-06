@@ -68,6 +68,15 @@ export const notes: Note[] = [
     boxed: 'twice',
     em: 17,
   },
+  {
+    id: 'font',
+    items: [
+      L('This font is an OTF file generated from my handwriting! Check it out', {
+        links: [link('Check it out', 'https://github.com/kamath/vercel-landing')],
+      }),
+    ],
+    em: 17,
+  },
   { id: 'flight', items: [], figure: { kind: 'arc', from: 'SF', to: 'NYC' }, em: 12 },
   PHOTO('p-bieber', 'bieber.jpeg', "Justin Bieber, Coachella '26", 9),
   {
