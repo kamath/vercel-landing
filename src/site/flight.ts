@@ -124,30 +124,28 @@ function solid(el: SVGPathElement): SVGPathElement {
   return el;
 }
 
-/** The Golden Gate in a few pen strokes: two poles, the arch of the main cable, and water. Box `W` x `H`, standing on y = 0. */
+/**
+ * The Golden Gate in a few pen strokes: one closed silhouette (cable arch over two poles, wavy waterline)
+ * whose paper fill hides whatever is behind it, plus the two poles inked on top. Box `W` x `H`, standing on y = 0.
+ */
 function goldenGate(W: number, H: number, seed: string): SVGPathElement[] {
   const towerX = [W * 0.28, W * 0.72];
-  const waterY = -H * 0.12;
+  const waterY = -H * 0.1;
   const cableAt = (x: number): number => {
     if (x < towerX[0]) return -H + ((towerX[0] - x) / towerX[0]) * (H * 0.5);
     if (x > towerX[1]) return -H + ((x - towerX[1]) / (W - towerX[1])) * (H * 0.5);
     const u = (x - towerX[0]) / (towerX[1] - towerX[0]);
     return -H + 4 * u * (1 - u) * (H * 0.55);
   };
-  const pole = (x: number, key: string) => ink(wobbly([{ x, y: waterY }, { x, y: -H }], `${seed}:${key}`, 0.5, 6), 2);
-  const arch: XY[] = [];
+  const outline: XY[] = [{ x: 0, y: waterY }];
   for (let i = 0; i <= 24; i++) {
     const x = (W * i) / 24;
-    arch.push({ x, y: cableAt(x) });
+    outline.push({ x, y: cableAt(x) });
   }
-  const water: XY[] = [];
-  for (let i = 0; i <= 10; i++) water.push({ x: W * 0.04 + i * W * 0.092, y: waterY + (i % 2 ? -H * 0.05 : 0) });
-  return [
-    pole(towerX[0], 'p0'),
-    ink(wobbly(arch, `${seed}:arch`, 0.5, 6), 1.8),
-    pole(towerX[1], 'p1'),
-    ink(wobbly(water, `${seed}:water`, 0.3, 5), 1.5),
-  ];
+  outline.push({ x: W, y: waterY });
+  for (let i = 10; i >= 0; i--) outline.push({ x: (W * i) / 10, y: waterY + (i % 2 ? -H * 0.05 : 0) });
+  const pole = (x: number, key: string) => ink(wobbly([{ x, y: waterY }, { x, y: -H }], `${seed}:${key}`, 0.5, 6), 2);
+  return [solid(ink(wobbly(outline, `${seed}:outline`, 0.5, 6), 1.8)), pole(towerX[0], 'p0'), pole(towerX[1], 'p1')];
 }
 
 export interface FlightScene {
