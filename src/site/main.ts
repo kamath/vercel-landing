@@ -231,8 +231,9 @@ class NoteView {
         }
         right = Math.max(right, indent + line.width);
         if (run.item.strike) doodles.append(strike(indent, indent + line.width, baseline - run.size * 0.22, seed));
-        if (run.item.underline || run.item.href)
-          doodles.append(underline(indent, indent + line.width, baseline + run.size * 0.16, seed, run.item.underline === 'twice' ? 2 : 1));
+        // A linked item is underlined once, as every link is, unless it says otherwise.
+        const rule = run.item.underline ?? (run.item.href ? 'once' : 'never');
+        if (rule !== 'never') doodles.append(underline(indent, indent + line.width, baseline + run.size * 0.16, seed, rule === 'twice' ? 2 : 1));
       });
       if (run.item.href) {
         const a = svgEl('a', { href: run.item.href, target: '_blank', rel: 'noopener' });
@@ -250,7 +251,7 @@ class NoteView {
       const [a, b] = this.note.brace;
       doodles.append(brace(-grid * 0.45, tops[a] + 4, bottoms[b] - 2, `${this.note.id}:brace`));
     }
-    if (this.note.boxed) doodles.append(box(-8, 2, right + 16, y + 2, `${this.note.id}:box`));
+    if (this.note.boxed) doodles.append(box(-8, 2, right + 16, y + 2, `${this.note.id}:box`, this.note.boxed === 'twice' ? 2 : 1));
     svg.append(doodles);
     this.frame(right, y);
   }
@@ -392,16 +393,20 @@ class Paper {
     this.validRows = Math.max(this.validRows, upTo);
   }
 
-  /** First free spot scanning top-to-bottom, left-to-right. The row at the bottom is always free. */
-  find(wc: number, hc: number): { x: number; y: number } {
+  /**
+   * First free spot scanning top-to-bottom, left-to-right. The row at the bottom is always free.
+   * `atLeft` only considers the left margin, for sections that never sit beside a neighbour.
+   */
+  find(wc: number, hc: number, atLeft = false): { x: number; y: number } {
     wc = Math.min(wc, this.cols);
     this.ensure(this.bottom + hc + 1);
     this.extend(this.bottom + hc);
     const { stride, t, cols } = this;
+    const lastX = atLeft ? 0 : cols - wc;
     for (let y = 0; y < this.bottom; y++) {
       const top = y * stride;
       const bot = (y + hc) * stride;
-      for (let x = 0; x + wc <= cols; x++) {
+      for (let x = 0; x <= lastX; x++) {
         if (t[bot + x + wc] - t[top + x + wc] - t[bot + x] + t[top + x] === 0) return { x, y };
       }
     }
@@ -426,12 +431,13 @@ function pack(views: NoteView[], cols: number, grid: number): number {
   const paper = new Paper(cols);
   const available = cols * grid;
   for (const v of views) {
+    const atLeft = v.note.atLeft ?? false;
     const pref = v.preferredWidth(available);
     const minW = Math.min(pref, v.narrowest(pref)); // always at least one candidate
     let best: { x: number; y: number; w: number; cells: Cells } | null = null;
     for (let w = pref; w >= minW; w -= grid) {
       const cells = v.measure(w);
-      const spot = paper.find(cells.cols, cells.rows);
+      const spot = paper.find(cells.cols, cells.rows, atLeft);
       if (!best || spot.y < best.y || (spot.y === best.y && spot.x < best.x)) best = { ...spot, w, cells };
       if (spot.y === 0 && spot.x === 0) break;
     }
@@ -439,7 +445,7 @@ function pack(views: NoteView[], cols: number, grid: number): number {
     v.layout(w);
     // The rendered size normally equals the measured one; if rounding ever disagrees, re-seat it safely.
     let spot = { x, y };
-    if (v.cols !== best!.cells.cols || v.rows !== best!.cells.rows) spot = paper.find(v.cols, v.rows);
+    if (v.cols !== best!.cells.cols || v.rows !== best!.cells.rows) spot = paper.find(v.cols, v.rows, atLeft);
     paper.place(spot.x, spot.y, v.cols, v.rows);
     v.el.dataset.cell = `${spot.x},${spot.y}`;
   }

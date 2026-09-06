@@ -65,19 +65,28 @@ export function underline(x1: number, x2: number, y: number, seed: string, laps 
   return g;
 }
 
-/** A box whose closing stroke overshoots the start corner, as pen boxes do. */
-export function box(x: number, y: number, w: number, h: number, seed: string): SVGPathElement {
-  const r = rng(seed + ':b');
-  const o = 4 + r() * 5;
-  const pts: XY[] = [
-    { x: x + o, y },
-    { x: x + w, y: y + (r() - 0.5) * 3 },
-    { x: x + w + (r() - 0.5) * 3, y: y + h },
-    { x, y: y + h + (r() - 0.5) * 3 },
-    { x: x + (r() - 0.5) * 2, y: y - 3 },
-    { x: x + o + 6, y: y - 2 },
-  ];
-  return ink(wobbly(pts, seed, 1.2, 14), 2.2);
+/**
+ * A box whose closing stroke overshoots the start corner, as pen boxes do. `laps` is how many times the pen
+ * goes round; each extra lap sits a little outside the last, the way a box gone over twice never lines up.
+ */
+export function box(x: number, y: number, w: number, h: number, seed: string, laps = 1): SVGGElement {
+  const g = svgEl('g');
+  for (let lap = 0; lap < laps; lap++) {
+    const tag = lap === 0 ? '' : String(lap); // the first lap keeps the original seeds, so single boxes are unchanged
+    const r = rng(`${seed}:b${tag}`);
+    const d = lap * 3;
+    const o = 4 + r() * 5;
+    const pts: XY[] = [
+      { x: x + o - d, y: y - d },
+      { x: x + w + d, y: y - d + (r() - 0.5) * 3 },
+      { x: x + w + d + (r() - 0.5) * 3, y: y + h + d },
+      { x: x - d, y: y + h + d + (r() - 0.5) * 3 },
+      { x: x - d + (r() - 0.5) * 2, y: y - d - 3 },
+      { x: x + o - d + 6, y: y - d - 2 },
+    ];
+    g.append(ink(wobbly(pts, `${seed}${tag}`, 1.2, 14), 2.2));
+  }
+  return g;
 }
 
 /** A left-facing curly brace spanning y1..y2 with its point at x. */

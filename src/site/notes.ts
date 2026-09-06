@@ -3,7 +3,8 @@
 export interface NoteItem {
   text: string;
   strike?: boolean;
-  underline?: 'once' | 'twice';
+  /** 'never' keeps the pen off an item that is otherwise underlined, such as a link. */
+  underline?: 'once' | 'twice' | 'never';
   /** Indent in grid cells (first line). */
   indent?: number;
   /** Extra indent for wrapped lines, in grid cells (hanging indent). */
@@ -29,8 +30,10 @@ export type Figure =
 export interface Note {
   id: string;
   items: NoteItem[];
-  /** Hand-drawn box around the whole block. */
-  boxed?: boolean;
+  /** Hand-drawn box around the whole block; 'twice' sends the pen round a second time. */
+  boxed?: boolean | 'twice';
+  /** Never sits beside an earlier section: starts a fresh line of the page, at the left margin. */
+  atLeft?: boolean;
   /** Curly brace to the left of items [from, to]. */
   brace?: [number, number];
   figure?: Figure;
@@ -53,17 +56,15 @@ const PHOTO = (id: string, src: string, alt: string, em: number): Note => ({
 export const notes: Note[] = [
   { id: 'date', items: [L('09/05/2026')], em: 8 },
   { id: 'name', items: [L('Anirudh Kamath', { size: 1.25 })], em: 14 },
-  { id: 'flight', items: [], figure: { kind: 'arc', from: 'SF', to: 'NYC' }, em: 12 },
-  PHOTO('p-bieber', 'bieber.jpeg', 'Fireworks over the stage at a Justin Bieber concert', 9),
   {
     id: 'now',
-    items: [
-      L('now:', { underline: 'twice' }),
-      SUB('→ enterprise identity @ arcade.dev', { links: [link('arcade.dev', 'https://arcade.dev')] }),
-      SUB('→ cooking @currychefwiththepot', { links: [link('@currychefwiththepot', 'https://www.instagram.com/currychefwiththepot')] }),
-    ],
+    items: [L('now: enterprise identity @ arcade.dev', { nowrap: true, href: 'https://arcade.dev', underline: 'never' })],
+    atLeft: true, // the first thing read after the name, always on its own line under it
+    boxed: 'twice',
     em: 17,
   },
+  { id: 'flight', items: [], figure: { kind: 'arc', from: 'SF', to: 'NYC' }, em: 12 },
+  PHOTO('p-bieber', 'bieber.jpeg', 'Fireworks over the stage at a Justin Bieber concert', 9),
   {
     id: 'smithery',
     items: [L('Smithery: co-founded. MCP identity for 300k+ humans. Acquired by arcade.dev.', { links: [link('Smithery', 'https://smithery.ai')] })],
