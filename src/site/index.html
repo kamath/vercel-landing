@@ -6,15 +6,15 @@
 <meta name="description" content="Anirudh Kamath. SF, often NYC. Agent identity at arcade.dev; before that Smithery, Stagehand at Browserbase, Whatnot.">
 <style>
   @font-face { font-family: "Notebook Hand"; src: url("NotebookHand-Regular.otf") format("opentype"); font-display: block; }
-  :root { --paper: #f4efe4; --grid: #dbd3c1; --ink: #1c1b22; --link: #1d4ed8; }
+  :root { --paper: #f4efe4; --grid: #dbd3c1; --ink: #1c1b22; --link: #1d4ed8; --print: #fbf8f2; }
   html { background: var(--paper); }
   body { margin: 0; color: var(--ink); background: var(--paper); font-family: "Notebook Hand", "Segoe Print", "Bradley Hand", cursive; }
   /* The rules are drawn by the page from the same cell size and origin the layout snaps to. */
   .page {
-    position: relative; width: 100%; min-height: 100vh; box-sizing: border-box; --cell: 30px; --origin: 30px;
+    position: relative; width: 100%; min-height: 100vh; box-sizing: border-box; --cell: 30px; --ox: 30px; --oy: 30px;
     background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
     background-size: var(--cell) var(--cell);
-    background-position: var(--origin) var(--origin);
+    background-position: var(--ox) var(--oy);
   }
   .note { position: absolute; transform: translate(var(--dx, 0), var(--dy, 0)) rotate(var(--rot, 0)); transform-origin: 20% 10%; }
   .note svg { display: block; overflow: visible; }
@@ -22,6 +22,8 @@
   .note svg a { cursor: pointer; }
   .note svg a:hover text, .note svg a:focus-visible text { fill: var(--link); }
   .note svg a:hover ~ .doodles { color: var(--link); }
+  /* Prints stuck on the page: the white border casts the shadow. */
+  .note .print { fill: var(--print); filter: drop-shadow(1px 2px 2.5px rgba(28, 27, 34, .26)); }
   @media (prefers-reduced-motion: no-preference) { .note { transition: left .25s ease, top .25s ease; } }
 </style>
 <main class="page" id="page"></main>
