@@ -38,6 +38,9 @@ class NoteView {
   private size = 0;
   private width = -1;
   private scale = 1;
+  w = 0;
+  h = 0;
+  readonly stretch: number;
 
   constructor(readonly note: Note) {
     const r = rng(`scatter:${note.id}`);
@@ -49,6 +52,8 @@ class NoteView {
     this.el.style.setProperty('--mt', `${(r() * 14).toFixed(0)}px`);
     // Each section was written at a slightly different moment: vary its size a touch.
     this.scale = 0.93 + r() * 0.14;
+    this.stretch = 0.85 + r() * 0.35; // how much of its preferred width this section takes today
+    this.el.style.setProperty('--rot', `${((r() - 0.5) * 3.2).toFixed(2)}deg`);
     this.el.append(this.svg);
   }
 
@@ -66,7 +71,7 @@ class NoteView {
 
   layout(available: number): void {
     const size = this.size;
-    const maxW = Math.max(60, Math.min(available - PAD * 2, (this.note.em ?? 16) * size));
+    const maxW = Math.max(60, Math.min(available - PAD * 2, (this.note.em ?? 16) * size * this.stretch));
     if (maxW === this.width) return;
     this.width = maxW;
 
@@ -123,9 +128,8 @@ class NoteView {
     this.svg.setAttribute('viewBox', `${-PAD} ${-PAD} ${W} ${H}`);
     this.svg.setAttribute('width', String(W));
     this.svg.setAttribute('height', String(H));
-    // Masonry packing: the grid has 8px auto rows, so span as many as this block needs (plus its own padding).
-    const padTop = parseFloat(getComputedStyle(this.el).paddingTop) || 0;
-    this.el.style.gridRowEnd = `span ${Math.ceil((H + padTop + 6) / 6)}`;
+    this.w = W;
+    this.h = H;
   }
 }
 
@@ -220,36 +224,109 @@ function drawFigure(svg: SVGSVGElement, kind: NonNullable<Note['figure']>, w: nu
   return { w, h: h + size * 0.3 };
 }
 
-// ----------------------------------------------------------------------------- page
+// ----------------------------------------------------------------------------- page packing
+
+const CELL = 6; // occupancy grid resolution in px
+const GUTTER_X = 22;
+const GUTTER_Y = 8;
+
+/**
+ * Fill the page the way a hand fills paper: every section goes into the first free rectangle
+ * found scanning top-to-bottom, left-to-right, so short notes slide into gaps beside taller ones.
+ */
+function pack(views: NoteView[], pageWidth: number, margin: number): number {
+  const cols = Math.max(1, Math.floor((pageWidth - margin * 2) / CELL));
+  const stride = cols + 1;
+  let rows = 256;
+  let grid = new Uint8Array(cols * rows);
+  // Summed-area table over the occupancy grid, so "is this rectangle free" is O(1).
+  // It is kept incrementally: placing a section only dirties rows at and below it.
+  let t = new Uint32Array(stride * (rows + 1));
+  let validRows = 0; // rows of `t` that are up to date
+  const extend = (upTo: number) => {
+    for (let y = validRows + 1; y <= upTo; y++) {
+      const row = y * stride;
+      const prev = (y - 1) * stride;
+      const g = (y - 1) * cols;
+      let acc = 0;
+      for (let x = 1; x <= cols; x++) {
+        acc += grid[g + x - 1];
+        t[row + x] = acc + t[prev + x];
+      }
+    }
+    validRows = Math.max(validRows, upTo);
+  };
+  let bottomRows = 0;
+
+  for (const v of views) {
+    const wc = Math.min(cols, Math.ceil((v.w + GUTTER_X) / CELL));
+    const hc = Math.ceil((v.h + GUTTER_Y) / CELL);
+    if (bottomRows + hc + 1 > rows) {
+      const nextRows = rows * 2;
+      const g2 = new Uint8Array(cols * nextRows);
+      g2.set(grid);
+      grid = g2;
+      const t2 = new Uint32Array(stride * (nextRows + 1));
+      t2.set(t);
+      t = t2;
+      rows = nextRows;
+    }
+    // Only rows up to the current bottom can hold a gap; the row at the bottom is always free.
+    extend(bottomRows + hc);
+    let px = 0;
+    let py = bottomRows;
+    outer: for (let y = 0; y < bottomRows; y++) {
+      const top = y * stride;
+      const bot = (y + hc) * stride;
+      for (let x = 0; x + wc <= cols; x++) {
+        if (t[bot + x + wc] - t[top + x + wc] - t[bot + x] + t[top + x] === 0) {
+          px = x;
+          py = y;
+          break outer;
+        }
+      }
+    }
+    for (let y = py; y < py + hc; y++) grid.fill(1, y * cols + px, y * cols + px + wc);
+    validRows = Math.min(validRows, py); // rows from py down must be recomputed
+    v.el.style.left = `${margin + px * CELL}px`;
+    v.el.style.top = `${margin + py * CELL}px`;
+    bottomRows = Math.max(bottomRows, py + hc);
+  }
+  return bottomRows * CELL + margin * 2;
+}
 
 async function main(): Promise<void> {
   await document.fonts.load(fontOf(26));
   await document.fonts.load(fontOf(24));
   const page = document.getElementById('page')!;
   const views = notes.map((n) => new NoteView(n));
-  let size = baseSize();
-  for (const v of views) {
-    v.prepare(size);
-    page.append(v.el);
-  }
+  for (const v of views) page.append(v.el);
 
-  const observer = new ResizeObserver((entries) => {
-    for (const entry of entries) {
-      const view = views.find((v) => v.el === entry.target);
-      if (view) view.layout(entry.contentRect.width);
-    }
-  });
-  for (const v of views) observer.observe(v.el);
-
-  window.addEventListener('resize', () => {
-    const next = baseSize();
-    if (next === size) return;
-    size = next;
+  const timings: { width: number; text: number; pack: number }[] = [];
+  const doLayout = () => {
+    const width = page.clientWidth;
+    const margin = width < 640 ? 14 : 28;
+    const size = baseSize();
+    const t0 = performance.now();
     for (const v of views) {
       v.prepare(size);
-      v.layout(v.el.clientWidth);
+      v.layout(width - margin * 2);
     }
-  });
+    const t1 = performance.now();
+    page.style.height = `${pack(views, width, margin)}px`;
+    const t2 = performance.now();
+    timings.push({ width, text: Math.round((t1 - t0) * 100) / 100, pack: Math.round((t2 - t1) * 100) / 100 });
+    if (timings.length > 20) timings.shift();
+  };
+  let pending = 0;
+  const relayout = () => {
+    cancelAnimationFrame(pending);
+    pending = requestAnimationFrame(doLayout);
+  };
+  new ResizeObserver(relayout).observe(page);
+  relayout();
+  // Debug hook: window.__notes.timings shows how long the last layouts took.
+  (window as unknown as { __notes: unknown }).__notes = { relayout: doLayout, timings };
 }
 
 void main();

@@ -14,17 +14,12 @@
     background-size: var(--cell) var(--cell);
     font-family: "Notebook Hand", "Segoe Print", "Bradley Hand", cursive;
   }
-  .page {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); grid-auto-flow: dense; grid-auto-rows: 6px;
-    gap: 0 14px; padding: 36px 26px 100px; max-width: 1700px; margin: 0 auto; box-sizing: border-box;
-  }
-  .note { padding-top: var(--mt, 0); padding-bottom: 2px; transform: translate(var(--dx, 0), var(--dy, 0)) rotate(var(--rot, 0)); transform-origin: 20% 10%; min-width: 0; }
+  .page { position: relative; width: 100%; max-width: 1800px; margin: 0 auto; padding-bottom: 80px; }
+  .note { position: absolute; transform: translate(var(--dx, 0), var(--dy, 0)) rotate(var(--rot, 0)); transform-origin: 20% 10%; min-width: 0; }
   .note svg { display: block; overflow: visible; max-width: 100%; height: auto; }
   .note svg text { fill: var(--ink); white-space: pre; }
-  .wide { grid-column: span 2; }
   .corner { position: fixed; right: 24px; top: 14px; font-size: 22px; opacity: .8; pointer-events: none; }
   .hint { position: fixed; left: 14px; bottom: 12px; padding: 4px 8px; border-radius: 4px; background: var(--paper); box-shadow: 0 0 0 1px var(--grid); font: 12px/1.3 system-ui, sans-serif; color: #8b7d66; letter-spacing: .04em; }
-  @media (max-width: 640px) { .page { padding: 24px 14px 80px; gap: 0 10px; } .wide { grid-column: auto; } }
   @media (prefers-reduced-motion: no-preference) { .note { transition: transform .25s ease; } }
 </style>
 <main class="page" id="page"></main>
