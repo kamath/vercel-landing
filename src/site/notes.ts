@@ -4,8 +4,10 @@ export interface NoteItem {
   text: string;
   strike?: boolean;
   underline?: boolean;
-  /** Indent in grid cells. */
+  /** Indent in grid cells (first line). */
   indent?: number;
+  /** Extra indent for wrapped lines, in grid cells (hanging indent). */
+  hang?: number;
   /** Blank lines after this item. */
   gap?: number;
   /** Relative font size. */
@@ -34,7 +36,7 @@ export interface Note {
 
 const L = (text: string, extra: Partial<NoteItem> = {}): NoteItem => ({ text, ...extra });
 const X = (text: string, extra: Partial<NoteItem> = {}): NoteItem => ({ text, strike: true, ...extra });
-const SUB = (text: string, extra: Partial<NoteItem> = {}): NoteItem => ({ text, indent: 1, ...extra });
+const SUB = (text: string, extra: Partial<NoteItem> = {}): NoteItem => ({ text, hang: 1, ...extra });
 const link = (text: string, href: string) => ({ text, href });
 
 export const notes: Note[] = [

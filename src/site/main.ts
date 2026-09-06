@@ -3,10 +3,12 @@
 // paper grid: one text line per cell, left edges on vertical rules, baselines on horizontal rules.
 
 import {
-  layoutWithLines,
-  measureLineStats,
+  layoutNextLine,
+  layoutNextLineRange,
   measureNaturalWidth,
   prepareWithSegments,
+  type LayoutCursor,
+  type LayoutLine,
   type PreparedTextWithSegments,
 } from '@chenglou/pretext';
 import { rng } from '../variants.js';
@@ -37,9 +39,11 @@ interface Run {
   item: NoteItem;
   prepared: PreparedTextWithSegments;
   size: number;
-  /** Cells per line and indent, fixed per grid size. */
+  /** Cells per line and indents, fixed per grid size. */
   lh: number;
   indent: number;
+  /** Extra indent for wrapped lines (hanging indent). */
+  hang: number;
   /** Natural single-line width, only for nowrap items. */
   natural?: number;
 }
@@ -106,7 +110,7 @@ class NoteView {
         }
         this.minWidth = Math.max(this.minWidth, indent + natural + 2);
       }
-      return { item, prepared, size: s, lh: grid * Math.max(1, Math.ceil((item.size ?? 1) - 0.3)), indent, natural };
+      return { item, prepared, size: s, lh: grid * Math.max(1, Math.ceil((item.size ?? 1) - 0.3)), indent, hang: (item.hang ?? 0) * grid, natural };
     });
     this.width = -1;
   }
@@ -133,9 +137,17 @@ class NoteView {
     let y = 0;
     let right = 0;
     for (const run of this.runs) {
-      const stats = measureLineStats(run.prepared, run.natural !== undefined ? run.natural + 2 : lineWidth(maxW, run.indent));
-      y += stats.lineCount * run.lh + (run.item.gap ?? 0) * grid;
-      right = Math.max(right, run.indent + stats.maxLineWidth);
+      let cursor: LayoutCursor = { segmentIndex: 0, graphemeIndex: 0 };
+      let lines = 0;
+      while (true) {
+        const x = run.indent + (lines > 0 ? run.hang : 0);
+        const range = layoutNextLineRange(run.prepared, cursor, run.natural !== undefined ? run.natural + 2 : lineWidth(maxW, x));
+        if (range === null) break;
+        right = Math.max(right, x + range.width);
+        cursor = range.end;
+        lines++;
+      }
+      y += Math.max(1, lines) * run.lh + (run.item.gap ?? 0) * grid;
     }
     return { cols: Math.ceil(right / grid) + GUTTER_COLS, rows: Math.round(y / grid) + GUTTER_ROWS };
   }
@@ -171,11 +183,20 @@ class NoteView {
     const bottoms: number[] = [];
 
     this.runs.forEach((run, idx) => {
-      const { indent, lh } = run;
-      const { lines } = layoutWithLines(run.prepared, run.natural !== undefined ? run.natural + 2 : lineWidth(maxW, indent), lh);
+      const { lh } = run;
+      const lines: LayoutLine[] = [];
+      let cursor: LayoutCursor = { segmentIndex: 0, graphemeIndex: 0 };
+      while (true) {
+        const x = run.indent + (lines.length > 0 ? run.hang : 0);
+        const line = layoutNextLine(run.prepared, cursor, run.natural !== undefined ? run.natural + 2 : lineWidth(maxW, x));
+        if (line === null) break;
+        lines.push(line);
+        cursor = line.end;
+      }
       tops.push(y);
       const text = svgEl('text', { 'font-family': FAMILY, 'font-size': run.size });
       lines.forEach((line, i) => {
+        const indent = run.indent + (i > 0 ? run.hang : 0); // hanging indent for wrapped lines
         // Letters sit on the horizontal rule: the baseline is the bottom of the cell, nudged up a touch.
         const baseline = y + lh * (i + 1) - grid * 0.12;
         const seed = `${this.note.id}:${idx}:${i}`;
@@ -223,7 +244,7 @@ class NoteView {
 
     if (this.note.brace) {
       const [a, b] = this.note.brace;
-      doodles.append(brace(grid * 0.55, tops[a] + 4, bottoms[b] - 2, `${this.note.id}:brace`));
+      doodles.append(brace(-grid * 0.45, tops[a] + 4, bottoms[b] - 2, `${this.note.id}:brace`));
     }
     if (this.note.boxed) doodles.append(box(-8, 2, right + 16, y + 2, `${this.note.id}:box`));
     svg.append(doodles);
