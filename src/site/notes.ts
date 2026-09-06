@@ -47,7 +47,7 @@ export const notes: Note[] = [
     id: 'now',
     items: [
       L('now:'),
-      SUB('→ Enterprise agent identity @ arcade.dev', { links: [link('arcade.dev', 'https://arcade.dev')] }),
+      SUB('→ enterprise identity @ arcade.dev', { links: [link('arcade.dev', 'https://arcade.dev')] }),
       SUB('→ cooking @currychefwiththepot', { links: [link('@currychefwiththepot', 'https://www.instagram.com/currychefwiththepot')] }),
     ],
     em: 17,
@@ -68,7 +68,7 @@ export const notes: Note[] = [
   },
   {
     id: 'abbrev',
-    items: [L('"great abbreviators" - Huxley', { href: 'https://www.goodreads.com/quotes/754134-we-are-all-as-huxley-says-someplace-great-abbreviators-meaning' })],
+    items: [L('"great abbreviators"', { href: 'https://www.goodreads.com/quotes/754134-we-are-all-as-huxley-says-someplace-great-abbreviators-meaning' })],
     boxed: true,
     em: 14,
   },
@@ -79,9 +79,8 @@ export const notes: Note[] = [
       L('links:'),
       SUB('- twitter/x', { links: [link('twitter/x', 'https://x.com/kamathematic')] }),
       SUB('- github', { links: [link('github', 'https://github.com/kamath')] }),
-      SUB('- linkedin', { links: [link('linkedin', 'https://www.linkedin.com/in/kamath')] }),
     ],
     em: 9,
   },
-  { id: 'todo', items: [X('make a website'), L('- ship it')], em: 10 },
+  { id: 'todo', items: [X('- make a website'), X('- ship it'), L('- profit')], em: 10 },
 ];
