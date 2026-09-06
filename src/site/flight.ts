@@ -82,14 +82,14 @@ function drawingOpacity(t: number, draw: Win, undraw: Win, period: number): numb
 }
 
 /**
- * How much a city hides the dotted line: the line arrives at full length and full opacity, then fades over the
- * city's hold; it stays hidden while the city fades, and is clear again the
+ * How much a city hides the line: from the moment the pens meet at the crossing, the line fades while it finishes
+ * drawing, and is gone as it arrives; it stays hidden while the city fades, and is clear again the
  * moment the city is gone (the next trip then starts from nothing). May wrap the loop.
  */
-function lineHidden(t: number, arrive: number, undraw: Win, period: number): number {
-  const rampStart = arrive;
+function lineHidden(t: number, meet: number, arrive: number, undraw: Win, period: number): number {
+  const rampStart = meet;
   const tt = (t - rampStart + period) % period;
-  const rampLen = Math.max(0.05, undraw[0] - rampStart);
+  const rampLen = Math.max(0.05, arrive - rampStart);
   const clearAt = (undraw[1] - rampStart + period) % period;
   if (tt < rampLen) return ease(tt / rampLen);
   if (tt < clearAt) return 1;
@@ -367,11 +367,11 @@ export function drawFlight(
     sf.style.opacity = `${sfFade}`;
     setProgress(nycInk, t, period);
     bridge.fill.style.fillOpacity = `${Math.min(1, setProgress(sfInk, t, period) * sfFade * 1.5)}`;
-    // The full line is visible on arrival, then fades while the city holds; it stays hidden
+    // The line starts fading as it crosses the city's stroke and is gone on arrival; it stays hidden
     // while the city fades, and the next trip starts once the city is gone.
     const hidden = Math.max(
-      lineHidden(t, fly1[1], nycUndraw, period),
-      lineHidden(t, fly2[1], sfUndraw, period),
+      lineHidden(t, meetNYC, fly1[1], nycUndraw, period),
+      lineHidden(t, meetSF, fly2[1], sfUndraw, period),
     );
     arc.style.opacity = `${1 - hidden}`;
     if (running) raf = requestAnimationFrame(frame);
