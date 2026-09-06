@@ -118,7 +118,7 @@ function solid(el: SVGPathElement): SVGPathElement {
  */
 function goldenGate(W: number, H: number, seed: string): { fill: SVGPathElement; water: SVGPathElement[]; poles: SVGPathElement[]; arch: SVGPathElement[] } {
   const towerX = [W * 0.3, W * 0.7];
-  const waterY = -H * 0.1;
+  const waterY = 0;
   const cableAt = (x: number): number => {
     // Parabola between the towers; outside them the cable keeps going down to the anchors near the water.
     if (x < towerX[0]) return -H + ((towerX[0] - x) / towerX[0]) * (H * 0.78);
@@ -198,13 +198,13 @@ export function drawFlight(
   const toText = textEl(toRight - toW, to.y + size * 0.95, labelSize, labels.to);
   svg.append(fromText, toText);
 
-  // City drawings stand on the label baselines, in place of the labels.
+  // City drawings stand on the arc's end points: the bridge flush with its left end, the skyline flush with its right.
   const cityW = w * 0.34;
   const cityH = w * 0.2;
-  const nyc = svgEl('g', { transform: `translate(${(toRight - cityW).toFixed(1)} ${(to.y + size * 0.95).toFixed(1)})` });
+  const nyc = svgEl('g', { transform: `translate(${(to.x - cityW).toFixed(1)} ${to.y.toFixed(1)})` });
   const nycStrokes = skyline(cityW, cityH, `${seed}:nyc`);
   nyc.append(...nycStrokes);
-  const sf = svgEl('g', { transform: `translate(${(from.x - size * 0.3).toFixed(1)} ${baseline.toFixed(1)})` });
+  const sf = svgEl('g', { transform: `translate(${from.x.toFixed(1)} ${from.y.toFixed(1)})` });
   const bridge = goldenGate(cityW * 1.1, cityH * 0.9, `${seed}:sf`);
   const sfStrokes = [...bridge.water, ...bridge.poles, ...bridge.arch];
   sf.append(bridge.fill, ...sfStrokes);
@@ -225,7 +225,7 @@ export function drawFlight(
     ...schedule(bridge.poles, phase(0.18, 0.72, T.sfDraw), T.sfUndraw),
     ...schedule(bridge.arch, phase(0.7, 1, T.sfDraw), T.sfUndraw),
   ];
-  const MARCH = 15; // px per second the dashes travel, one dash-plus-gap period per second
+  const MARCH = 45; // px per second the dashes travel, three dash-plus-gap periods per second
   let start = performance.now();
   let raf = 0;
   const frame = (now: number) => {
@@ -255,11 +255,8 @@ export function drawFlight(
     const nycUp = setProgress(nycInk, t) * nycFade;
     const sfUp = setProgress(sfInk, t) * sfFade;
     bridge.fill.style.fillOpacity = `${Math.min(1, sfUp * 1.5)}`;
-    // The dotted line and both city labels fade out together as a city draws in, and return as it fades away.
-    const line = 1 - Math.min(1, Math.max(nycUp, sfUp) * 1.5);
-    arc.style.opacity = `${line}`;
-    fromText.style.opacity = `${line}`;
-    toText.style.opacity = `${line}`;
+    // The line fades in step with the city: gone exactly when the last stroke lands, back as the city fades.
+    arc.style.opacity = `${1 - Math.min(1, Math.max(nycUp, sfUp))}`;
     raf = requestAnimationFrame(frame);
   };
   raf = requestAnimationFrame(frame);
