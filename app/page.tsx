@@ -5,7 +5,7 @@ import Page from "@/components/client/page";
 
 export default async function Home() {
   return (
-    <div className="h-screen w-screen flex items-center justify-center bg-gray-100 overflow-hidden">
+    <div className="h-screen w-screen flex items-center justify-center overflow-hidden bg-neutral-100 transition-colors duration-300 dark:bg-neutral-950">
       <div className="relative overflow-hidden">
         <Iphone15Pro className="size-full md:block hidden overflow-hidden">
           <Page />

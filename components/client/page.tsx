@@ -361,7 +361,7 @@ function ScrollableSection({
           )}
         </div>
 
-        <div className="p-4 flex items-center justify-center w-full overflow-hidden bg-white">
+        <div className="p-4 flex items-center justify-center w-full overflow-hidden bg-white text-neutral-950 transition-colors duration-300 dark:bg-neutral-900 dark:text-neutral-100">
           <div className="flex flex-col gap-4">
             <PinterestScroll food={food} />
             <div className="flex justify-center">
@@ -369,7 +369,7 @@ function ScrollableSection({
                 href="https://www.instagram.com/currychefwiththepot/"
                 target="_blank"
               >
-                <button className="bg-black text-white px-6 py-3 rounded-full flex justify-center items-center gap-2 w-fit">
+                <button className="bg-black text-white px-6 py-3 rounded-full flex justify-center items-center gap-2 w-fit transition-colors hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200">
                   <FontAwesomeIcon icon={faInstagram} />
                   <h5 className="text-sm">currychefwiththepot</h5>
                 </button>
@@ -488,7 +488,7 @@ export default function Page() {
 
   return (
     <div
-      className="w-screen md:w-full h-screen md:h-full overflow-y-auto bg-black"
+      className="w-screen md:w-full h-screen md:h-full overflow-y-auto bg-black transition-colors duration-300"
       ref={motionDivRef}
     >
       {scrollContext ? (

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 
 // If loading a variable font, you don't need to specify the font weight
@@ -12,7 +12,14 @@ config.autoAddCss = false;
 export const metadata: Metadata = {
   title: "Anirudh Kamath",
   description: '"Landing Page" c/o Anirudh Kamath',
-  themeColor: "black",
+};
+
+export const viewport: Viewport = {
+  colorScheme: "light dark",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f5f5f5" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
 };
 
 export default function RootLayout({
