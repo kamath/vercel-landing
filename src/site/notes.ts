@@ -74,12 +74,14 @@ export const notes: Note[] = [
   {
     id: 'notebook',
     items: [
-      L('my handwriting is neat irl! (calligraphy too)'),
-      L('I modeled it as a reusable font and added contextual alternates and ligatures so repeated letters never look stamped.', { gap: 1 }),
-      L('I also write small (but neat!) scribbles: as little space and as few words as possible. I only used two pages in my notebook.'),
-      L('write less → rabbithole less'),
+      L('My handwriting is neat irl too, and this website is modeled off my actual notes.'),
+      L(
+        'I traced every letter into a font with a few versions of each, and the font swaps between them as you type so nothing looks stamped. The page then drops each note into the first empty gap it finds, the way a notebook page fills up.',
+        { gap: 1 },
+      ),
+      L("I've also only used a single-digit amount of pages in my notebook, with each page leaving no whitespace for more scattered scribbles of notes."),
     ],
-    em: 20,
+    em: 21,
   },
   {
     id: 'humanity',
@@ -104,5 +106,5 @@ export const notes: Note[] = [
     ],
     em: 9,
   },
-  { id: 'todo', items: [X('make a website'), L('- keep it short'), L('- ship it')], em: 10 },
+  { id: 'todo', items: [X('make a website'), L('- ship it')], em: 10 },
 ];
