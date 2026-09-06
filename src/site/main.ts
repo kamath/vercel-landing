@@ -16,6 +16,7 @@ import { box, brace, ink, strike, svgEl, underline, wobbly, type XY } from './do
 import { drawFlight } from './flight.js';
 import { notes, type Figure, type Note, type NoteItem } from './notes.js';
 import { aspectOf } from './photos.js';
+import { spotlight } from './spotlight.js';
 
 const FAMILY = '"Notebook Hand"';
 const PAD = 8; // room around each block for doodles that overshoot the text
@@ -174,7 +175,7 @@ class NoteView {
               this.scene = scene;
               return scene;
             })()
-          : drawFigure(svg, fig, maxW, grid, this.note.id);
+          : drawFigure(svg, fig, maxW, grid, this.note.id, this.el);
       this.frame(w, Math.ceil(h / grid) * grid);
       return;
     }
@@ -298,8 +299,11 @@ function photoSize(fig: Extract<Figure, { kind: 'photo' }>, w: number, grid: num
   return { w, h: (w - mat * 2) / aspectOf(fig.src) + mat * 2 };
 }
 
-/** A print stuck onto the page: the photo sits on a white border, tilted a few degrees. */
-function drawPhoto(svg: SVGSVGElement, fig: Extract<Figure, { kind: 'photo' }>, w: number, grid: number, seed: string): { w: number; h: number } {
+/**
+ * A print stuck onto the page: the photo sits on a white border, tilted a few degrees. Hovering it dims
+ * the rest of the page and writes its description beside it; `note` is the element that gets lifted.
+ */
+function drawPhoto(svg: SVGSVGElement, fig: Extract<Figure, { kind: 'photo' }>, w: number, grid: number, seed: string, note: HTMLElement): { w: number; h: number } {
   const r = rng(`photo:${seed}`);
   const mat = matOf(grid);
   const imgW = w - mat * 2;
@@ -310,16 +314,14 @@ function drawPhoto(svg: SVGSVGElement, fig: Extract<Figure, { kind: 'photo' }>, 
   g.append(svgEl('rect', { class: 'print', x: 0, y: 0, width: w, height: printH }));
   const img = svgEl('image', { x: mat, y: mat, width: imgW, height: imgH, preserveAspectRatio: 'xMidYMid slice', role: 'img', 'aria-label': fig.alt });
   img.setAttribute('href', fig.src);
-  const title = svgEl('title');
-  title.textContent = fig.alt;
-  img.append(title);
   g.append(img);
   svg.append(g);
+  spotlight(note, g, fig.alt);
   return { w, h: printH };
 }
 
-function drawFigure(svg: SVGSVGElement, fig: Exclude<Figure, { kind: 'arc' }>, w: number, grid: number, seed: string): { w: number; h: number } {
-  if (fig.kind === 'photo') return drawPhoto(svg, fig, w, grid, seed);
+function drawFigure(svg: SVGSVGElement, fig: Exclude<Figure, { kind: 'arc' }>, w: number, grid: number, seed: string, note: HTMLElement): { w: number; h: number } {
+  if (fig.kind === 'photo') return drawPhoto(svg, fig, w, grid, seed, note);
 
   // rocket: a small doodle, three grid rows tall.
   const h = grid * 3;

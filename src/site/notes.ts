@@ -64,13 +64,13 @@ export const notes: Note[] = [
     em: 17,
   },
   { id: 'flight', items: [], figure: { kind: 'arc', from: 'SF', to: 'NYC' }, em: 12 },
-  PHOTO('p-bieber', 'bieber.jpeg', 'Fireworks over the stage at a Justin Bieber concert', 9),
+  PHOTO('p-bieber', 'bieber.jpeg', "Justin Bieber, Coachella '26", 9),
   {
     id: 'smithery',
     items: [L('Smithery: co-founded. MCP identity for 300k+ humans. Acquired by arcade.dev.', { links: [link('Smithery', 'https://smithery.ai')] })],
     em: 16,
   },
-  PHOTO('p-wall', 'great_wall.jpeg', 'The Great Wall running along the ridgeline north of Beijing', 8),
+  PHOTO('p-wall', 'great_wall.jpeg', 'The Great Wall, Beijing', 8),
   {
     id: 'browserbase',
     items: [
@@ -80,7 +80,7 @@ export const notes: Note[] = [
     ],
     em: 17,
   },
-  PHOTO('p-halfdome', 'half_dome.jpeg', 'Looking down the face of Half Dome into Yosemite Valley', 8),
+  PHOTO('p-halfdome', 'half_dome.jpeg', 'Summit of Half Dome, Yosemite', 8),
   {
     id: 'whatnot',
     items: [
@@ -90,7 +90,7 @@ export const notes: Note[] = [
     ],
     em: 16,
   },
-  PHOTO('p-shivani', 'me_and_shivani.jpeg', 'Shivani and me on the steps of Wat Arun, Bangkok', 7),
+  PHOTO('p-shivani', 'me_and_shivani.jpeg', 'Shivani and me at Wat Arun, Bangkok', 7),
   {
     id: 'abbrev',
     items: [L('"great abbreviators"', { href: 'https://www.goodreads.com/quotes/754134-we-are-all-as-huxley-says-someplace-great-abbreviators-meaning' })],
@@ -98,7 +98,7 @@ export const notes: Note[] = [
     em: 14,
   },
   { id: 'rocket', items: [], figure: { kind: 'rocket' }, em: 6 },
-  PHOTO('p-kofta', 'malai_kofta.jpeg', 'A heart-shaped malai kofta in a black bowl, sauced and topped with an edible flower', 7),
+  PHOTO('p-kofta', 'malai_kofta.jpeg', 'Malai kofta I made in San Francisco', 7),
   {
     id: 'links',
     items: [

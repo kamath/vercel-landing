@@ -24,7 +24,15 @@
   .note svg a:hover ~ .doodles { color: var(--link); }
   /* Prints stuck on the page: the white border casts the shadow. */
   .note .print { fill: var(--print); filter: drop-shadow(1px 2px 2.5px rgba(28, 27, 34, .26)); }
-  @media (prefers-reduced-motion: no-preference) { .note { transition: left .25s ease, top .25s ease; } }
+  /* Spotlight: hovering a print dims the page behind a fixed sheet; the lit note is raised above it, in place. */
+  .spotlight { position: fixed; inset: 0; z-index: 1; background: rgba(28, 27, 34, .78); opacity: 0; pointer-events: none; }
+  .spotlight.on { opacity: 1; }
+  .note.lit { z-index: 2; }
+  .spotlight-caption { position: fixed; margin: 0; color: var(--paper); font-size: 22px; line-height: 1.35; text-align: center; }
+  @media (prefers-reduced-motion: no-preference) {
+    .note { transition: left .25s ease, top .25s ease; }
+    .spotlight { transition: opacity .2s ease; }
+  }
 </style>
 <main class="page" id="page"></main>
 <script type="module" src="site.js"></script>
