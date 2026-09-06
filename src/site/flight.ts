@@ -1,4 +1,4 @@
-// The SF <-> NYC doodle: the dotted arc draws itself from SF to NYC. As its tip reaches the skyline, the
+// The SF <-> NYC doodle: the arc draws itself from SF to NYC. As its tip reaches the skyline, the
 // skyline is drawing itself so that the building's outline and the dotted line meet at their crossing point
 // at the same instant; the line fades once it has arrived, the city holds, then fades as the line sets off
 // back. The same happens at SF with the Golden Gate's cable. Everything is pen-style ink on one clock, and the
@@ -83,7 +83,7 @@ function drawingOpacity(t: number, draw: Win, undraw: Win, period: number): numb
 
 /**
  * How much a city hides the dotted line: the line arrives at full length and full opacity, then fades over the
- * city's hold with its dashes still marching; it stays hidden while the city fades, and is clear again the
+ * city's hold; it stays hidden while the city fades, and is clear again the
  * moment the city is gone (the next trip then starts from nothing). May wrap the loop.
  */
 function lineHidden(t: number, arrive: number, undraw: Win, period: number): number {
@@ -268,7 +268,6 @@ export function drawFlight(
   mask.append(reveal);
   defs.append(mask);
   const arc = ink(arcD, 2);
-  arc.setAttribute('stroke-dasharray', '7 8');
   arc.setAttribute('mask', `url(#${maskId})`);
   svg.append(defs, arc);
   const arcLen = reveal.getTotalLength();
@@ -347,7 +346,6 @@ export function drawFlight(
   ];
   const timeline: Record<string, number | Win> = { period, fly1, meetNYC, nycDraw, nycUndraw, fly2, meetSF, sfDraw, sfUndraw };
 
-  const MARCH = 45; // px per second the dashes travel, three dash-plus-gap periods per second
   let start = performance.now();
   let raf = 0;
   let running = true;
@@ -356,31 +354,20 @@ export function drawFlight(
   const frame = (now: number) => {
     const t = ((now - start) / 1000) % period;
     frames++;
-    // The line draws itself out from SF, later back from NYC, dashes marching the way it is heading.
+    // The line draws itself out from SF, later back from NYC.
     let offset: number;
-    let march: number;
-    if (t < fly1[1]) {
-      offset = arcLen * (1 - ease(between(t, fly1)));
-      march = -MARCH * (t - fly1[0]);
-    } else if (t < fly2[0]) {
-      offset = 0;
-      march = -MARCH * (t - fly1[0]); // keeps moving while it fades
-    } else if (t < fly2[1]) {
-      offset = -arcLen * (1 - ease(between(t, fly2))); // negative: revealed from the NYC end
-      march = MARCH * (t - fly2[0]);
-    } else {
-      offset = 0;
-      march = MARCH * (t - fly2[0]);
-    }
+    if (t < fly1[1]) offset = arcLen * (1 - ease(between(t, fly1)));
+    else if (t < fly2[0]) offset = 0;
+    else if (t < fly2[1]) offset = -arcLen * (1 - ease(between(t, fly2))); // negative: revealed from the NYC end
+    else offset = 0;
     reveal.style.strokeDashoffset = `${offset}`;
-    arc.style.strokeDashoffset = `${march}`;
     const nycFade = drawingOpacity(t, nycDraw, nycUndraw, period);
     const sfFade = drawingOpacity(t, sfDraw, sfUndraw, period);
     nyc.style.opacity = `${nycFade}`;
     sf.style.opacity = `${sfFade}`;
     setProgress(nycInk, t, period);
     bridge.fill.style.fillOpacity = `${Math.min(1, setProgress(sfInk, t, period) * sfFade * 1.5)}`;
-    // The full line is visible on arrival, then fades (dashes still marching) while the city holds; it stays hidden
+    // The full line is visible on arrival, then fades while the city holds; it stays hidden
     // while the city fades, and the next trip starts once the city is gone.
     const hidden = Math.max(
       lineHidden(t, fly1[1], nycUndraw, period),
