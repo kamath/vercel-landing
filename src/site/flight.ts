@@ -4,16 +4,16 @@
 
 import { ink, svgEl, wobbly, type XY } from './doodle.js';
 
-const PERIOD = 7.8; // seconds per round trip
+const PERIOD = 11.8; // seconds per round trip
 
-// Timeline in seconds. Cities draw in just before the line arrives, hold briefly, and fade as it sets off again.
+// Timeline in seconds. A city starts drawing once the line has finished arriving, holds, and fades as the line sets off again.
 const T = {
   fly1: [0.0, 3.6],
   sfUndraw: [0.0, 0.7],
-  nycDraw: [2.4, 3.5],
-  nycUndraw: [3.9, 4.6],
-  fly2: [3.9, 7.5],
-  sfDraw: [6.3, 7.4],
+  nycDraw: [3.6, 4.7],
+  nycUndraw: [5.9, 6.6],
+  fly2: [5.9, 9.5],
+  sfDraw: [9.5, 10.6],
 } as const;
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
