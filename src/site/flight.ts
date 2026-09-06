@@ -224,10 +224,15 @@ export interface FlightScene {
   w: number;
   h: number;
   stop: () => void;
+  /** Pause and resume the loop (used while the doodle is scrolled out of view). */
+  pause: () => void;
+  resume: () => void;
   /** Jump the loop clock to a given second (debugging aid). */
   seek: (t: number) => void;
   /** The computed schedule, in seconds (debugging aid). */
   timeline: Record<string, number | Win>;
+  /** Frames rendered so far (debugging aid). */
+  frames: () => number;
 }
 
 export function drawFlight(
@@ -295,7 +300,7 @@ export function drawFlight(
     reveal.style.strokeDashoffset = '0';
     nyc.remove();
     sf.remove();
-    return { w, h: from.y + size * 1.05, stop: () => {}, seek: () => {}, timeline: {} };
+    return { w, h: from.y + size * 1.05, stop: () => {}, pause: () => {}, resume: () => {}, seek: () => {}, timeline: {}, frames: () => 0 };
   }
 
   // ---- Schedule from the geometry.
@@ -345,8 +350,12 @@ export function drawFlight(
   const MARCH = 45; // px per second the dashes travel, three dash-plus-gap periods per second
   let start = performance.now();
   let raf = 0;
+  let running = true;
+  let pausedAt = 0;
+  let frames = 0;
   const frame = (now: number) => {
     const t = ((now - start) / 1000) % period;
+    frames++;
     // The line draws itself out from SF, later back from NYC, dashes marching the way it is heading.
     let offset: number;
     let march: number;
@@ -378,7 +387,7 @@ export function drawFlight(
       lineHidden(t, meetSF, fly2[1], sfUndraw, period),
     );
     arc.style.opacity = `${1 - hidden}`;
-    raf = requestAnimationFrame(frame);
+    if (running) raf = requestAnimationFrame(frame);
   };
   raf = requestAnimationFrame(frame);
   frame(start);
@@ -386,11 +395,27 @@ export function drawFlight(
   return {
     w,
     h: from.y + size * 1.05,
-    stop: () => cancelAnimationFrame(raf),
+    stop: () => {
+      running = false;
+      cancelAnimationFrame(raf);
+    },
+    pause: () => {
+      if (!running) return;
+      running = false;
+      pausedAt = performance.now();
+      cancelAnimationFrame(raf);
+    },
+    resume: () => {
+      if (running) return;
+      running = true;
+      start += performance.now() - pausedAt; // pick up where it left off
+      raf = requestAnimationFrame(frame);
+    },
     seek: (t) => {
       start = performance.now() - t * 1000;
       frame(performance.now());
     },
     timeline,
+    frames: () => frames,
   };
 }

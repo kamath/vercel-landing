@@ -74,13 +74,6 @@ export const notes: Note[] = [
     em: 14,
   },
   {
-    id: 'notebook',
-    items: [
-      L("My handwriting is neat irl too, and this website is modeled off my actual notes! I've only used a single-digit amount of pages in my notebook, with each page leaving no additional whitespace for more scattered scribbles."),
-    ],
-    em: 21,
-  },
-  {
     id: 'humanity',
     items: [
       L('humans rock', { underline: true }),

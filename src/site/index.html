@@ -22,11 +22,8 @@
   .note svg a { cursor: pointer; }
   .note svg a:hover text, .note svg a:focus-visible text { fill: var(--link); }
   .note svg a:hover ~ .doodles { color: var(--link); }
-  .hint { position: fixed; left: 14px; bottom: 12px; padding: 4px 8px; border-radius: 4px; background: var(--paper); box-shadow: 0 0 0 1px var(--grid); font: 12px/1.3 system-ui, sans-serif; color: #8b7d66; letter-spacing: .04em; }
-  .hint a { color: var(--link); text-decoration: underline; }
   @media (prefers-reduced-motion: no-preference) { .note { transition: left .25s ease, top .25s ease; } }
 </style>
 <main class="page" id="page"></main>
-<div class="hint">laid out with <a href="http://pretextjs.dev/" target="_blank" rel="noopener">pretext</a> (try resizing me!)</div>
 <script type="module" src="site.js"></script>
 </html>
