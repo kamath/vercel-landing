@@ -9,8 +9,8 @@ const PERIOD = 12; // seconds per round trip
 // Timeline in seconds. Cities start drawing as the plane approaches and undraw as it leaves.
 const T = {
   fly1: [0.0, 4.0],
-  sfUndraw: [0.0, 1.0],
-  sfBack: [0.8, 1.2],
+  sfUndraw: [0.0, 2.5],
+  sfBack: [2.2, 2.6],
   nycFade: [3.1, 3.5],
   nycDraw: [3.2, 4.4],
   turn1: [5.6, 6.0],
@@ -25,6 +25,18 @@ const T = {
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const ease = (p: number) => (p < 0.5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2);
 const between = (t: number, [a, b]: readonly [number, number]) => clamp01((t - a) / (b - a));
+
+/** Opacity of a label that fades out over `out` and back in over `back`, either window possibly wrapping the loop. */
+function labelOpacity(t: number, out: readonly [number, number], back: readonly [number, number]): number {
+  const tt = (t - out[0] + PERIOD) % PERIOD;
+  const outLen = out[1] - out[0];
+  const backAt = (back[0] - out[0] + PERIOD) % PERIOD;
+  const backLen = back[1] - back[0];
+  if (tt < outLen) return 1 - ease(tt / outLen);
+  if (tt < backAt) return 0;
+  if (tt < backAt + backLen) return ease((tt - backAt) / backLen);
+  return 1;
+}
 
 interface Stroke {
   el: SVGPathElement;
@@ -53,95 +65,89 @@ function schedule(els: SVGPathElement[], draw: readonly [number, number], undraw
   });
 }
 
-/** Advances every stroke and returns the group's mean progress, which drives the paper backing behind it. */
+/** Advances every stroke and returns the group's mean progress (used to hide the plane inside a drawn city). */
 function setProgress(strokes: Stroke[], t: number): number {
   let sum = 0;
   for (const s of strokes) {
+    // Work in a frame that starts at this stroke's draw, so an undraw window that wraps past the loop end still follows it.
+    const tt = (t - s.draw[0] + PERIOD) % PERIOD;
+    const drawLen = s.draw[1] - s.draw[0];
+    const undrawAt = (s.undraw[0] - s.draw[0] + PERIOD) % PERIOD;
+    const undrawLen = s.undraw[1] - s.undraw[0];
     let p: number;
-    if (t < s.draw[0]) p = 0;
-    else if (t < s.draw[1]) p = ease(between(t, s.draw));
-    else if (t < s.undraw[0]) p = 1;
-    else if (t < s.undraw[1]) p = 1 - ease(between(t, s.undraw));
+    if (tt < drawLen) p = ease(tt / drawLen);
+    else if (tt < undrawAt) p = 1;
+    else if (tt < undrawAt + undrawLen) p = 1 - ease((tt - undrawAt) / undrawLen);
     else p = 0;
     s.el.style.strokeDashoffset = `${s.len * (1 - p)}`;
+    if (s.el.dataset.solid) s.el.style.fillOpacity = `${Math.min(1, p * 1.3)}`;
     sum += p;
   }
   return strokes.length ? sum / strokes.length : 0;
 }
 
-/** A lower-Manhattan-ish skyline in a box `W` wide, `H` tall, standing on y = 0 at x = 0. */
+/** Three New York landmarks in a box `W` wide, `H` tall, standing on y = 0 at x = 0: Chrysler, Empire State, One WTC. */
 function skyline(W: number, H: number, seed: string): SVGPathElement[] {
-  const b = (x: number, w: number, h: number, top: 'flat' | 'spire' | 'antenna' | 'taper'): XY[] => {
-    const pts: XY[] = [{ x, y: 0 }, { x, y: -h }];
-    if (top === 'spire') {
-      pts.push({ x: x + w * 0.3, y: -h }, { x: x + w * 0.3, y: -h - H * 0.1 }, { x: x + w * 0.5, y: -h - H * 0.1 });
-      pts.push({ x: x + w * 0.5, y: -h - H * 0.28 }, { x: x + w * 0.5, y: -h - H * 0.1 }, { x: x + w * 0.7, y: -h - H * 0.1 }, { x: x + w * 0.7, y: -h });
-    } else if (top === 'antenna') {
-      pts.push({ x: x + w * 0.5, y: -h - H * 0.12 }, { x: x + w * 0.5, y: -h - H * 0.3 }, { x: x + w * 0.5, y: -h - H * 0.12 });
-    } else if (top === 'taper') {
-      pts.push({ x: x + w * 0.35, y: -h - H * 0.12 }, { x: x + w * 0.5, y: -h - H * 0.24 }, { x: x + w * 0.65, y: -h - H * 0.12 });
-    }
-    pts.push({ x: x + w, y: -h }, { x: x + w, y: 0 });
-    return pts;
-  };
-  const specs: [number, number, number, 'flat' | 'spire' | 'antenna' | 'taper'][] = [
-    [0.0, 0.1, 0.42, 'flat'],
-    [0.12, 0.08, 0.62, 'flat'],
-    [0.22, 0.14, 0.72, 'spire'],
-    [0.38, 0.09, 0.5, 'flat'],
-    [0.49, 0.12, 0.66, 'taper'],
-    [0.63, 0.1, 0.46, 'flat'],
-    [0.75, 0.13, 0.7, 'antenna'],
-    [0.9, 0.1, 0.36, 'flat'],
+  const chrysler = (x: number, w: number, h: number): XY[] => [
+    { x, y: 0 }, { x, y: -h },
+    { x: x + w * 0.12, y: -h - H * 0.06 }, { x: x + w * 0.28, y: -h - H * 0.06 },
+    { x: x + w * 0.34, y: -h - H * 0.15 }, { x: x + w * 0.44, y: -h - H * 0.15 },
+    { x: x + w * 0.5, y: -h - H * 0.34 },
+    { x: x + w * 0.56, y: -h - H * 0.15 }, { x: x + w * 0.66, y: -h - H * 0.15 },
+    { x: x + w * 0.72, y: -h - H * 0.06 }, { x: x + w * 0.88, y: -h - H * 0.06 },
+    { x: x + w, y: -h }, { x: x + w, y: 0 },
   ];
-  return specs.map(([x, w, h, top], i) => ink(wobbly(b(x * W, w * W, h * H, top), `${seed}:b${i}`, 0.5, 5), 1.7));
+  const empire = (x: number, w: number, h: number): XY[] => [
+    { x, y: 0 }, { x, y: -h * 0.82 }, { x: x + w * 0.12, y: -h * 0.82 }, { x: x + w * 0.12, y: -h },
+    { x: x + w * 0.36, y: -h }, { x: x + w * 0.36, y: -h - H * 0.1 }, { x: x + w * 0.46, y: -h - H * 0.1 },
+    { x: x + w * 0.5, y: -h - H * 0.34 },
+    { x: x + w * 0.54, y: -h - H * 0.1 }, { x: x + w * 0.64, y: -h - H * 0.1 }, { x: x + w * 0.64, y: -h },
+    { x: x + w * 0.88, y: -h }, { x: x + w * 0.88, y: -h * 0.82 }, { x: x + w, y: -h * 0.82 }, { x: x + w, y: 0 },
+  ];
+  const wtc = (x: number, w: number, h: number): XY[] => [
+    { x, y: 0 }, { x: x + w * 0.06, y: -h }, { x: x + w * 0.5, y: -h }, { x: x + w * 0.5, y: -h - H * 0.3 },
+    { x: x + w * 0.5, y: -h }, { x: x + w * 0.94, y: -h }, { x: x + w, y: 0 },
+  ];
+  const shapes = [
+    chrysler(0.02 * W, 0.24 * W, 0.62 * H),
+    empire(0.36 * W, 0.26 * W, 0.78 * H),
+    wtc(0.7 * W, 0.28 * W, 0.86 * H),
+  ];
+  return shapes.map((pts, i) => solid(ink(wobbly(pts, `${seed}:b${i}`, 0.5, 5), 1.7)));
 }
 
-/** The Golden Gate in a box `W` wide, `H` tall, standing on y = 0 at x = 0. */
+/** A closed pen shape that hides whatever is behind it once drawn (the fill fades in with the stroke). */
+function solid(el: SVGPathElement): SVGPathElement {
+  el.setAttribute('fill', 'var(--paper)');
+  el.style.fillOpacity = '0';
+  el.dataset.solid = '1';
+  return el;
+}
+
+/** The Golden Gate in a few pen strokes: two poles, the arch of the main cable, and water. Box `W` x `H`, standing on y = 0. */
 function goldenGate(W: number, H: number, seed: string): SVGPathElement[] {
-  const deckY = -H * 0.34;
-  const towerX = [W * 0.3, W * 0.7];
-  const tw = W * 0.045;
-  const els: SVGPathElement[] = [];
+  const towerX = [W * 0.28, W * 0.72];
+  const waterY = -H * 0.12;
   const cableAt = (x: number): number => {
-    // Parabola between the towers, straight runs to the anchors outside them.
-    if (x < towerX[0]) return -H + ((towerX[0] - x) / towerX[0]) * (H * 0.45);
-    if (x > towerX[1]) return -H + ((x - towerX[1]) / (W - towerX[1])) * (H * 0.45);
+    if (x < towerX[0]) return -H + ((towerX[0] - x) / towerX[0]) * (H * 0.5);
+    if (x > towerX[1]) return -H + ((x - towerX[1]) / (W - towerX[1])) * (H * 0.5);
     const u = (x - towerX[0]) / (towerX[1] - towerX[0]);
-    return -H + 4 * u * (1 - u) * (H * 0.5);
+    return -H + 4 * u * (1 - u) * (H * 0.55);
   };
-  const cable = (x0: number, x1: number, key: string) => {
-    const pts: XY[] = [];
-    const n = 14;
-    for (let i = 0; i <= n; i++) {
-      const x = x0 + ((x1 - x0) * i) / n;
-      pts.push({ x, y: cableAt(x) });
-    }
-    return ink(wobbly(pts, `${seed}:${key}`, 0.4, 6), 1.7);
-  };
-  const tower = (x: number, key: string) => {
-    const legs: XY[] = [{ x: x - tw, y: 0 }, { x: x - tw, y: -H }, { x: x + tw, y: -H }, { x: x + tw, y: 0 }];
-    const parts = [ink(wobbly(legs, `${seed}:${key}`, 0.4, 5), 1.8)];
-    for (const f of [0.5, 0.72, 0.92]) parts.push(ink(wobbly([{ x: x - tw, y: -H * f }, { x: x + tw, y: -H * f }], `${seed}:${key}${f}`, 0.3, 4), 1.5));
-    return parts;
-  };
-  els.push(cable(0, towerX[0], 'c0'));
-  els.push(...tower(towerX[0], 't0'));
-  els.push(cable(towerX[0], towerX[1], 'c1'));
-  els.push(...tower(towerX[1], 't1'));
-  els.push(cable(towerX[1], W, 'c2'));
-  els.push(ink(wobbly([{ x: 0, y: deckY }, { x: W, y: deckY }], `${seed}:deck`, 0.5, 8), 1.8));
-  for (let x = W * 0.08; x < W; x += W * 0.08) {
-    if (Math.abs(x - towerX[0]) < tw * 1.5 || Math.abs(x - towerX[1]) < tw * 1.5) continue;
-    els.push(ink(wobbly([{ x, y: cableAt(x) }, { x, y: deckY }], `${seed}:s${x.toFixed(0)}`, 0.3, 5), 1.2));
+  const pole = (x: number, key: string) => ink(wobbly([{ x, y: waterY }, { x, y: -H }], `${seed}:${key}`, 0.5, 6), 2);
+  const arch: XY[] = [];
+  for (let i = 0; i <= 24; i++) {
+    const x = (W * i) / 24;
+    arch.push({ x, y: cableAt(x) });
   }
-  // A couple of waves under the deck.
-  for (const [x0, y] of [[W * 0.1, -H * 0.12], [W * 0.55, -H * 0.08]] as [number, number][]) {
-    const pts: XY[] = [];
-    for (let i = 0; i <= 6; i++) pts.push({ x: x0 + i * W * 0.04, y: y + (i % 2 ? -H * 0.04 : 0) });
-    els.push(ink(wobbly(pts, `${seed}:w${x0.toFixed(0)}`, 0.2, 4), 1.4));
-  }
-  return els;
+  const water: XY[] = [];
+  for (let i = 0; i <= 10; i++) water.push({ x: W * 0.04 + i * W * 0.092, y: waterY + (i % 2 ? -H * 0.05 : 0) });
+  return [
+    pole(towerX[0], 'p0'),
+    ink(wobbly(arch, `${seed}:arch`, 0.5, 6), 1.8),
+    pole(towerX[1], 'p1'),
+    ink(wobbly(water, `${seed}:water`, 0.3, 5), 1.5),
+  ];
 }
 
 export interface FlightScene {
@@ -189,17 +195,12 @@ export function drawFlight(
   // City drawings stand on the label baselines, in place of the labels.
   const cityW = w * 0.34;
   const cityH = w * 0.2;
-  const backing = (wd: number, ht: number) =>
-    svgEl('rect', { x: -3, y: -ht - 4, width: wd + 6, height: ht + 8, fill: 'var(--paper)', opacity: 0 });
-  const nyc = svgEl('g', { transform: `translate(${(toRight - cityW).toFixed(1)} ${(to.y + size * 0.95).toFixed(1)})` });
+const nyc = svgEl('g', { transform: `translate(${(toRight - cityW).toFixed(1)} ${(to.y + size * 0.95).toFixed(1)})` });
   const nycStrokes = skyline(cityW, cityH, `${seed}:nyc`);
-  const nycBacking = backing(cityW, cityH * 1.05);
-  nyc.append(nycBacking, ...nycStrokes);
+  nyc.append(...nycStrokes);
   const sf = svgEl('g', { transform: `translate(${(from.x - size * 0.3).toFixed(1)} ${baseline.toFixed(1)})` });
   const sfStrokes = goldenGate(cityW * 1.1, cityH * 0.9, `${seed}:sf`);
-  const sfBacking = backing(cityW * 1.1, cityH * 0.9);
-  sf.append(sfBacking, ...sfStrokes);
-  svg.append(nyc, sf);
+  sf.append(...sfStrokes);
 
   const s = size * 0.55;
   const plane = ink(
@@ -214,7 +215,7 @@ export function drawFlight(
     ),
     2,
   );
-  svg.append(plane);
+  svg.append(plane, nyc, sf); // cities stack above the plane, so a drawn city covers it
   const place = (t: number, extraAngle: number) => {
     const p = q(t);
     plane.setAttribute('transform', `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)}) rotate(${(angle(t) + extraAngle).toFixed(1)})`);
@@ -243,10 +244,18 @@ export function drawFlight(
     else if (t < T.turn2[0]) place(0, 180);
     else place(0, 180 + 180 * ease(between(t, T.turn2)));
     // Labels give way to the drawings and come back.
-    toText.style.opacity = `${1 - between(t, T.nycFade) + between(t, T.nycBack)}`;
-    fromText.style.opacity = `${1 - between(t, T.sfFade) + between(t, T.sfBack)}`;
-    nycBacking.style.opacity = `${Math.min(1, setProgress(nycInk, t) * 1.6)}`;
-    sfBacking.style.opacity = `${Math.min(1, setProgress(sfInk, t) * 1.6)}`;
+    toText.style.opacity = `${labelOpacity(t, T.nycFade, T.nycBack)}`;
+    fromText.style.opacity = `${labelOpacity(t, T.sfFade, T.sfBack)}`;
+    const nycUp = setProgress(nycInk, t);
+    const sfUp = setProgress(sfInk, t);
+    // Parked inside a drawn city the plane is out of sight; in the air it is always visible (the city's
+    // solid shapes sit above it, so it disappears into the skyline on approach and emerges on departure).
+    let visible: number;
+    if (t < T.fly1[1]) visible = Math.min(1, t / 0.4);
+    else if (t < T.turn1[1]) visible = 1 - Math.min(1, nycUp * 2);
+    else if (t < T.fly2[1]) visible = Math.min(1, (t - T.fly2[0]) / 0.4);
+    else visible = 1 - Math.min(1, sfUp * 2);
+    plane.style.opacity = `${visible}`;
     raf = requestAnimationFrame(frame);
   };
   raf = requestAnimationFrame(frame);
