@@ -45,8 +45,8 @@ export const notes: Note[] = [
     id: 'now',
     items: [
       L('now:'),
-      SUB('- enterprise ai governance @ arcade.dev', { links: [link('arcade.dev', 'https://arcade.dev')] }),
-      SUB('- cooking → @currychefwiththepot', { links: [link('@currychefwiththepot', 'https://www.instagram.com/currychefwiththepot')] }),
+      SUB('- Enterprise agent identity @ arcade.dev', { links: [link('arcade.dev', 'https://arcade.dev')] }),
+      SUB('- cooking @currychefwiththepot', { links: [link('@currychefwiththepot', 'https://www.instagram.com/currychefwiththepot')] }),
     ],
     em: 17,
   },
