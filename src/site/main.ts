@@ -11,6 +11,7 @@ import {
 } from '@chenglou/pretext';
 import { rng } from '../variants.js';
 import { box, brace, ink, strike, svgEl, underline, wobbly, type XY } from './doodle.js';
+import { drawFlight } from './flight.js';
 import { notes, type Figure, type Note, type NoteItem } from './notes.js';
 
 const FAMILY = '"Notebook Hand"';
@@ -62,6 +63,8 @@ class NoteView {
   /** Block size in grid cells, set by layout(). */
   cols = 0;
   rows = 0;
+  /** Cancels a running figure animation before the figure is redrawn. */
+  private stopAnimation: (() => void) | null = null;
 
   constructor(readonly note: Note) {
     const r = rng(`scatter:${note.id}`);
@@ -114,6 +117,7 @@ class NoteView {
 
   /** Narrowest width this section may be squeezed to. */
   narrowest(pref: number): number {
+    if (this.note.figure) return pref; // drawings keep their size
     return Math.max(4 * this.grid, this.minWidth, pref * 0.7);
   }
 
@@ -141,8 +145,18 @@ class NoteView {
 
     const svg = this.svg;
     svg.replaceChildren();
+    this.stopAnimation?.();
+    this.stopAnimation = null;
     if (this.note.figure) {
-      const { w, h } = drawFigure(svg, this.note.figure, maxW, grid, this.note.id);
+      const fig = this.note.figure;
+      const { w, h } =
+        fig.kind === 'arc'
+          ? (() => {
+              const scene = drawFlight(svg, maxW, grid, this.note.id, { from: fig.from, to: fig.to }, textEl, labelWidth);
+              this.stopAnimation = scene.stop;
+              return scene;
+            })()
+          : drawFigure(svg, fig, maxW, grid, this.note.id);
       this.frame(w, Math.ceil(h / grid) * grid);
       return;
     }
@@ -246,47 +260,7 @@ function figureSize(fig: Figure, w: number, grid: number): { w: number; h: numbe
   return { w: Math.max(w, h * 0.7), h };
 }
 
-function drawFigure(svg: SVGSVGElement, fig: Figure, w: number, grid: number, seed: string): { w: number; h: number } {
-  const size = grid * 0.78;
-
-  if (fig.kind === 'arc') {
-    const h = w * 0.5;
-    const from: XY = { x: w * 0.06, y: h * 0.78 };
-    const to: XY = { x: w * 0.94, y: h * 0.76 };
-    const ctrl: XY = { x: w * 0.5, y: -h * 0.1 };
-    const path = ink(`M${from.x} ${from.y} Q${ctrl.x} ${ctrl.y} ${to.x} ${to.y}`, 2);
-    path.setAttribute('stroke-dasharray', '7 8');
-    svg.append(path);
-    const s = size * 0.55;
-    // One plane each way, both riding the dotted line at different points along it.
-    const plane = (t: number, reverse: boolean) => {
-      const q = (a: number, b: number, c: number) => (1 - t) * (1 - t) * a + 2 * (1 - t) * t * b + t * t * c;
-      const dx = 2 * (1 - t) * (ctrl.x - from.x) + 2 * t * (to.x - ctrl.x);
-      const dy = 2 * (1 - t) * (ctrl.y - from.y) + 2 * t * (to.y - ctrl.y);
-      const px = q(from.x, ctrl.x, to.x);
-      const py = q(from.y, ctrl.y, to.y);
-      const ang = (Math.atan2(dy, dx) * 180) / Math.PI + (reverse ? 180 : 0);
-      const el = ink(
-        wobbly(
-          [
-            { x: -s, y: 0 }, { x: s * 0.9, y: 0 }, { x: s * 0.2, y: -s * 0.75 }, { x: -s * 0.2, y: -s * 0.75 }, { x: -s * 0.05, y: 0 },
-            { x: -s * 0.2, y: s * 0.75 }, { x: s * 0.2, y: s * 0.75 }, { x: s * 0.9, y: 0 },
-          ],
-          `${seed}:plane${reverse ? 'r' : ''}`,
-          0.5,
-          6,
-        ),
-        2,
-      );
-      el.setAttribute('transform', `translate(${px.toFixed(1)} ${py.toFixed(1)}) rotate(${ang.toFixed(1)})`);
-      return el;
-    };
-    svg.append(plane(0.3, false), plane(0.72, true));
-    svg.append(textEl(from.x - size * 0.3, from.y + size * 0.95, size * 0.85, fig.from));
-    const toW = labelWidth(fig.to, size * 0.85);
-    svg.append(textEl(to.x - toW + size * 0.3, to.y + size * 0.95, size * 0.85, fig.to));
-    return { w, h: from.y + size * 1.05 };
-  }
+function drawFigure(svg: SVGSVGElement, fig: Exclude<Figure, { kind: 'arc' }>, w: number, grid: number, seed: string): { w: number; h: number } {
 
   // rocket: a small doodle, three grid rows tall.
   const h = grid * 3;
