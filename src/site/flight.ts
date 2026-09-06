@@ -24,6 +24,16 @@ const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const ease = (p: number) => (p < 0.5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2);
 const between = (t: number, [a, b]: readonly [number, number]) => clamp01((t - a) / (b - a));
 
+/** Opacity of a drawing that fades out over `undraw`, measured from the start of its `draw` window (may wrap the loop). */
+function drawingOpacity(t: number, draw: readonly [number, number], undraw: readonly [number, number]): number {
+  const tt = (t - draw[0] + PERIOD) % PERIOD;
+  const undrawAt = (undraw[0] - draw[0] + PERIOD) % PERIOD;
+  const undrawLen = undraw[1] - undraw[0];
+  if (tt < undrawAt) return 1;
+  if (tt < undrawAt + undrawLen) return 1 - ease((tt - undrawAt) / undrawLen);
+  return 1;
+}
+
 /** Opacity of a label that fades out over `out` and back in over `back`, either window possibly wrapping the loop. */
 function labelOpacity(t: number, out: readonly [number, number], back: readonly [number, number]): number {
   const tt = (t - out[0] + PERIOD) % PERIOD;
@@ -72,11 +82,8 @@ function setProgress(strokes: Stroke[], t: number): number {
     const drawLen = s.draw[1] - s.draw[0];
     const undrawAt = (s.undraw[0] - s.draw[0] + PERIOD) % PERIOD;
     const undrawLen = s.undraw[1] - s.undraw[0];
-    let p: number;
-    if (tt < drawLen) p = ease(tt / drawLen);
-    else if (tt < undrawAt) p = 1;
-    else if (tt < undrawAt + undrawLen) p = 1 - ease((tt - undrawAt) / undrawLen);
-    else p = 0;
+    // Strokes stay fully inked through the undraw window: the drawing fades out as a whole rather than un-drawing.
+    const p = tt < drawLen ? ease(tt / drawLen) : tt < undrawAt + undrawLen ? 1 : 0;
     s.el.style.strokeDashoffset = `${s.len * (1 - p)}`;
     if (s.el.dataset.solid) s.el.style.fillOpacity = `${Math.min(1, p * 1.3)}`;
     sum += p;
@@ -282,10 +289,14 @@ export function drawFlight(
     arc.style.strokeDashoffset = `${march}`;
     toText.style.opacity = `${labelOpacity(t, T.nycFade, T.nycBack)}`;
     fromText.style.opacity = `${labelOpacity(t, T.sfFade, T.sfBack)}`;
-    const nycUp = setProgress(nycInk, t);
-    const sfUp = setProgress(sfInk, t);
+    const nycFade = drawingOpacity(t, T.nycDraw, T.nycUndraw);
+    const sfFade = drawingOpacity(t, T.sfDraw, T.sfUndraw);
+    nyc.style.opacity = `${nycFade}`;
+    sf.style.opacity = `${sfFade}`;
+    const nycUp = setProgress(nycInk, t) * nycFade;
+    const sfUp = setProgress(sfInk, t) * sfFade;
     bridge.fill.style.fillOpacity = `${Math.min(1, sfUp * 1.5)}`;
-    // The dotted line fades out as a city draws in and comes back as the city goes away.
+    // The dotted line fades out as a city draws in and comes back as the city fades away.
     arc.style.opacity = `${1 - Math.min(1, Math.max(nycUp, sfUp) * 1.5)}`;
     raf = requestAnimationFrame(frame);
   };
