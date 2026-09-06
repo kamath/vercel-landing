@@ -16,6 +16,7 @@ import { box, brace, ink, strike, svgEl, underline, wobbly, type XY } from './do
 import { drawFlight } from './flight.js';
 import { notes, type Figure, type Note, type NoteItem } from './notes.js';
 import { aspectOf } from './photos.js';
+import { drawSketch, SKETCHES, sketchSize } from './sketches.js';
 import { spotlight } from './spotlight.js';
 
 const FAMILY = '"Notebook Hand"';
@@ -73,6 +74,8 @@ class NoteView {
   rows = 0;
   /** Cancels a running figure animation before the figure is redrawn. */
   private stopAnimation: (() => void) | null = null;
+  /** Set on a doodle just put on the page: its first layout is drawn stroke by stroke. */
+  fresh = false;
   /** Debug handle on a running figure animation. */
   scene: { seek: (t: number) => void; pause: () => void; resume: () => void; timeline: Record<string, number | readonly number[]>; frames: () => number } | null = null;
 
@@ -257,6 +260,19 @@ class NoteView {
     this.frame(right, y);
   }
 
+  /** Draws the strokes one after another, at pen speed, the way they were just doodled. */
+  reveal(): void {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let delay = 0;
+    for (const path of this.svg.querySelectorAll('path')) {
+      const len = path.getTotalLength();
+      const duration = Math.min(1400, Math.max(90, len / 0.55)); // px per ms
+      const anim = path.animate([{ strokeDasharray: `${len}`, strokeDashoffset: len }, { strokeDasharray: `${len}`, strokeDashoffset: 0 }], { duration, delay, easing: 'linear', fill: 'backwards' });
+      anim.onfinish = () => anim.cancel();
+      delay += duration + 70; // the pen lifts between strokes
+    }
+  }
+
   private frame(w: number, h: number): void {
     const W = Math.ceil(w + PAD * 2);
     const H = Math.ceil(h + PAD * 2);
@@ -287,8 +303,7 @@ function figureSize(fig: Figure, w: number, grid: number): { w: number; h: numbe
   const size = grid * 0.78;
   if (fig.kind === 'arc') return { w, h: w * 0.5 * 0.78 + size * 1.05 };
   if (fig.kind === 'photo') return photoSize(fig, w, grid);
-  const h = grid * 3;
-  return { w: Math.max(w, h * 0.7), h };
+  return sketchSize(fig.kind, w, grid);
 }
 
 /** White border around a print. */
@@ -322,30 +337,7 @@ function drawPhoto(svg: SVGSVGElement, fig: Extract<Figure, { kind: 'photo' }>, 
 
 function drawFigure(svg: SVGSVGElement, fig: Exclude<Figure, { kind: 'arc' }>, w: number, grid: number, seed: string, note: HTMLElement): { w: number; h: number } {
   if (fig.kind === 'photo') return drawPhoto(svg, fig, w, grid, seed, note);
-
-  // rocket: a small doodle, three grid rows tall.
-  const h = grid * 3;
-  const cx = w / 2;
-  const body = wobbly(
-    [
-      { x: cx, y: 4 }, { x: cx + h * 0.16, y: h * 0.32 }, { x: cx + h * 0.16, y: h * 0.72 }, { x: cx - h * 0.16, y: h * 0.72 },
-      { x: cx - h * 0.16, y: h * 0.32 }, { x: cx, y: 4 },
-    ],
-    `${seed}:body`,
-    0.7,
-    8,
-  );
-  svg.append(ink(body, 2));
-  const fin = (dir: number) =>
-    ink(wobbly([{ x: cx + dir * h * 0.16, y: h * 0.52 }, { x: cx + dir * h * 0.32, y: h * 0.8 }, { x: cx + dir * h * 0.16, y: h * 0.72 }], `${seed}:fin${dir}`, 0.6, 8), 2);
-  svg.append(fin(1), fin(-1));
-  const porthole = ink(wobbly([{ x: cx - 4, y: h * 0.4 }, { x: cx + 4, y: h * 0.36 }, { x: cx + 4, y: h * 0.46 }, { x: cx - 4, y: h * 0.47 }, { x: cx - 4, y: h * 0.4 }], `${seed}:win`, 0.4, 5), 1.8);
-  svg.append(porthole);
-  for (let i = 0; i < 3; i++) {
-    const x = cx + (i - 1) * h * 0.09;
-    svg.append(ink(wobbly([{ x, y: h * 0.76 }, { x: x + (i - 1) * 3, y: h * (0.9 + (i === 1 ? 0.08 : 0)) }], `${seed}:fl${i}`, 0.8, 6), 2));
-  }
-  return { w: Math.max(w, h * 0.7), h };
+  return drawSketch(svg, fig.kind, w, grid, seed);
 }
 
 // ----------------------------------------------------------------------------- page packing
@@ -415,6 +407,34 @@ class Paper {
     return { x: 0, y: this.bottom };
   }
 
+  /**
+   * The free spot nearest to (x0, y0): that row first, then the rows just below and above it, and so on outwards;
+   * within a row, the column closest to x0. Rows past the bottom are free, so this always lands somewhere.
+   */
+  near(wc: number, hc: number, x0: number, y0: number): { x: number; y: number } {
+    wc = Math.min(wc, this.cols);
+    const lastX = this.cols - wc;
+    x0 = Math.max(0, Math.min(lastX, x0));
+    y0 = Math.max(0, y0);
+    const limit = Math.max(this.bottom, y0);
+    this.ensure(limit + hc + 1);
+    this.extend(limit + hc);
+    const { stride, t } = this;
+    for (let d = 0; d <= limit; d++) {
+      for (const y of d === 0 ? [y0] : [y0 + d, y0 - d]) {
+        if (y < 0 || y > limit) continue;
+        const top = y * stride;
+        const bot = (y + hc) * stride;
+        let best = -1;
+        for (let x = 0; x <= lastX; x++) {
+          if (t[bot + x + wc] - t[top + x + wc] - t[bot + x] + t[top + x] === 0 && (best < 0 || Math.abs(x - x0) < Math.abs(best - x0))) best = x;
+        }
+        if (best >= 0) return { x: best, y };
+      }
+    }
+    return { x: x0, y: limit };
+  }
+
   place(x: number, y: number, wc: number, hc: number): void {
     wc = Math.min(wc, this.cols);
     this.ensure(y + hc + 1);
@@ -432,7 +452,18 @@ class Paper {
 function pack(views: NoteView[], cols: number, grid: number): number {
   const paper = new Paper(cols);
   const available = cols * grid;
+  // Pinned doodles go down first, each centred on the cell it was put on (or the nearest free one), so the
+  // written sections then flow around them like around anything else already on the page.
   for (const v of views) {
+    const pin = v.note.pin;
+    if (!pin) continue;
+    v.layout(v.preferredWidth(available));
+    const spot = paper.near(v.cols, v.rows, pin.col - Math.floor((v.cols - GUTTER_COLS) / 2), pin.row - Math.floor((v.rows - GUTTER_ROWS) / 2));
+    paper.place(spot.x, spot.y, v.cols, v.rows);
+    v.el.dataset.cell = `${spot.x},${spot.y}`;
+  }
+  for (const v of views) {
+    if (v.note.pin) continue;
     const atLeft = v.note.atLeft ?? false;
     const pref = v.preferredWidth(available);
     const minW = Math.min(pref, v.narrowest(pref)); // always at least one candidate
@@ -461,6 +492,8 @@ async function main(): Promise<void> {
   for (const v of views) page.append(v.el);
 
   const timings: { width: number; ms: number }[] = [];
+  /** Where the grid sits on the page after the last layout, so a click can be turned into a cell. */
+  const geometry = { grid: 0, left: 0, margin: 0 };
   const doLayout = () => {
     const width = page.clientWidth;
     if (width === 0) return; // hidden or not yet sized: the ResizeObserver will call back when there is paper
@@ -469,6 +502,7 @@ async function main(): Promise<void> {
     // A page is only so wide however big the desk is: past that the writing is centred and the rest is margin.
     const cols = Math.max(4, Math.floor((Math.min(width, MAX_PAGE) - margin * 2) / grid));
     const left = Math.round((width - cols * grid) / 2);
+    Object.assign(geometry, { grid, left, margin });
     page.style.setProperty('--cell', `${grid}px`);
     page.style.setProperty('--ox', `${left}px`);
     page.style.setProperty('--oy', `${margin}px`);
@@ -484,6 +518,10 @@ async function main(): Promise<void> {
       // The SVG's viewBox starts PAD before the text origin, so back the element up by PAD to land on the rule.
       v.el.style.left = `${left + cx * grid - PAD}px`;
       v.el.style.top = `${margin + cy * grid - PAD}px`;
+      if (v.fresh) {
+        v.fresh = false;
+        v.reveal();
+      }
     }
     page.style.height = `${(rows + 2) * grid + margin}px`;
     timings.push({ width, ms: Math.round((performance.now() - t0) * 100) / 100 });
@@ -496,6 +534,28 @@ async function main(): Promise<void> {
   };
   new ResizeObserver(relayout).observe(page);
   doLayout();
+
+  // A click anywhere but on a link doodles there: the next sketch in turn is pinned to that cell and the rest of
+  // the page makes room. Only the new note is measured and drawn; every other section keeps its rendering and just moves.
+  let doodled = 0;
+  const addDoodle = (x: number, y: number) => {
+    const { grid, left, margin } = geometry;
+    if (grid === 0) return;
+    const n = doodled++;
+    const view = new NoteView({ id: `doodle-${n}`, items: [], figure: { kind: SKETCHES[n % SKETCHES.length] }, em: 3, pin: { col: Math.floor((x - left) / grid), row: Math.floor((y - margin) / grid) } });
+    view.fresh = true;
+    view.el.style.left = `${x}px`; // starts under the pointer and slides onto the grid
+    view.el.style.top = `${y}px`;
+    views.push(view);
+    page.append(view.el);
+    doLayout();
+  };
+  page.addEventListener('click', (e) => {
+    if (e.button !== 0 || e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+    if ((e.target as Element).closest('a')) return; // links keep their click; anything else on the page is paper
+    const rect = page.getBoundingClientRect();
+    addDoodle(e.clientX - rect.left, e.clientY - rect.top);
+  });
   // Animated doodles only run while on screen.
   const onScreen = new IntersectionObserver((entries) => {
     for (const e of entries) {
@@ -506,7 +566,7 @@ async function main(): Promise<void> {
   });
   for (const v of views) if (v.note.figure?.kind === 'arc') onScreen.observe(v.el); // synchronously, so a background tab or prerender still gets a laid-out page
   // Debug hook: window.__notes.timings shows how long the last layouts took.
-  (window as unknown as { __notes: unknown }).__notes = { relayout: doLayout, timings, seek: (t: number) => views.forEach((v) => v.scene?.seek(t)), timeline: () => views.find((v) => v.scene)?.scene?.timeline, frames: () => views.find((v) => v.scene)?.scene?.frames() };
+  (window as unknown as { __notes: unknown }).__notes = { relayout: doLayout, timings, doodle: addDoodle, seek: (t: number) => views.forEach((v) => v.scene?.seek(t)), timeline: () => views.find((v) => v.scene)?.scene?.timeline, frames: () => views.find((v) => v.scene)?.scene?.frames() };
 }
 
 void main();

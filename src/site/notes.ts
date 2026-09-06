@@ -1,5 +1,7 @@
 // The page content, written the way the notebook is: only what's top of mind, as few words as possible.
 
+import type { Sketch } from './sketches.js';
+
 export interface NoteItem {
   text: string;
   strike?: boolean;
@@ -23,7 +25,8 @@ export interface NoteItem {
 
 export type Figure =
   | { kind: 'arc'; from: string; to: string }
-  | { kind: 'rocket' }
+  /** A small pen doodle: the rocket, the pointed S, a cube, or an 8 gone over and over. */
+  | { kind: Sketch }
   /** A photo stuck onto the page; its shape comes from the file itself, measured at build time. */
   | { kind: 'photo'; src: string; alt: string };
 
@@ -39,6 +42,8 @@ export interface Note {
   figure?: Figure;
   /** Preferred text width in em. */
   em?: number;
+  /** Stuck to the page at this cell (centred on it); everything else flows around it. Set by a click on the page. */
+  pin?: { col: number; row: number };
 }
 
 const L = (text: string, extra: Partial<NoteItem> = {}): NoteItem => ({ text, ...extra });
