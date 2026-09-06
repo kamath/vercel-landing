@@ -66,7 +66,7 @@ class NoteView {
   /** Cancels a running figure animation before the figure is redrawn. */
   private stopAnimation: (() => void) | null = null;
   /** Debug handle on a running figure animation. */
-  scene: { seek: (t: number) => void } | null = null;
+  scene: { seek: (t: number) => void; timeline: Record<string, number | readonly number[]> } | null = null;
 
   constructor(readonly note: Note) {
     const r = rng(`scatter:${note.id}`);
@@ -428,7 +428,7 @@ async function main(): Promise<void> {
   new ResizeObserver(relayout).observe(page);
   doLayout(); // synchronously, so a background tab or prerender still gets a laid-out page
   // Debug hook: window.__notes.timings shows how long the last layouts took.
-  (window as unknown as { __notes: unknown }).__notes = { relayout: doLayout, timings, seek: (t: number) => views.forEach((v) => v.scene?.seek(t)) };
+  (window as unknown as { __notes: unknown }).__notes = { relayout: doLayout, timings, seek: (t: number) => views.forEach((v) => v.scene?.seek(t)), timeline: () => views.find((v) => v.scene)?.scene?.timeline };
 }
 
 void main();

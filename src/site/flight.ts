@@ -1,68 +1,66 @@
-// The SF <-> NYC doodle: the dotted arc draws itself from SF to NYC. On arrival the label gives way to a skyline
-// that draws itself building by building; it undraws as the arc retracts home, and the Golden Gate draws at SF.
-// Everything is pen-style ink, driven by one clock so strokes, fades, and the travelling line stay in sync.
+// The SF <-> NYC doodle: the dotted arc draws itself from SF to NYC. As its tip reaches the skyline, the
+// skyline is drawing itself so that the building's outline and the dotted line meet at their crossing point
+// at the same instant; the line fades once it has arrived, the city holds, then fades as the line sets off
+// back. The same happens at SF with the Golden Gate's cable. Everything is pen-style ink on one clock, and the
+// schedule is computed from the geometry (where the dotted arc crosses each drawing) rather than hard-coded.
 
 import { ink, svgEl, wobbly, type XY } from './doodle.js';
 
-const PERIOD = 12.3; // seconds per round trip
-
-// Timeline in seconds. A city starts drawing once the line has finished arriving, holds, and fades as the line sets off again.
-const T = {
-  fly1: [0.0, 3.6],
-  sfUndraw: [0.0, 0.7],
-  nycDraw: [3.6, 4.7],
-  nycUndraw: [5.9, 6.6],
-  fly2: [5.9, 9.5],
-  sfDraw: [9.5, 11.1],
-} as const;
+const FLY = 3.6; // seconds for the line to draw itself across
+const HOLD = 1.2; // seconds a finished city stays before fading
+const FADE = 0.7; // seconds a city takes to fade out
+const NYC_DRAW = 1.1; // seconds the skyline takes to draw
+const SF_DRAW = 1.6; // seconds the bridge takes to draw (poles, water, then the arch over the back half)
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const ease = (p: number) => (p < 0.5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2);
+/** Inverse of `ease` (it is monotonic), by bisection. */
+function easeInv(y: number): number {
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (ease(mid) < y) lo = mid;
+    else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
 const between = (t: number, [a, b]: readonly [number, number]) => clamp01((t - a) / (b - a));
 
-/** Opacity of a drawing that fades out over `undraw`, measured from the start of its `draw` window (may wrap the loop). */
-function drawingOpacity(t: number, draw: readonly [number, number], undraw: readonly [number, number]): number {
-  const tt = (t - draw[0] + PERIOD) % PERIOD;
-  const undrawAt = (undraw[0] - draw[0] + PERIOD) % PERIOD;
-  const undrawLen = undraw[1] - undraw[0];
-  if (tt < undrawAt) return 1;
-  if (tt < undrawAt + undrawLen) return 1 - ease((tt - undrawAt) / undrawLen);
-  return 1;
-}
+type Win = readonly [number, number];
 
 interface Stroke {
   el: SVGPathElement;
   len: number;
-  draw: [number, number];
-  undraw: [number, number];
+  draw: Win;
+  undraw: Win;
 }
 
 /** Give a group of strokes staggered draw windows (left to right); they all stay inked until the shared undraw window ends. */
-function schedule(els: SVGPathElement[], draw: readonly [number, number], undraw: readonly [number, number], share = 0.5): Stroke[] {
+function schedule(els: SVGPathElement[], draw: Win, undraw: Win, share = 0.5): Stroke[] {
   const n = els.length;
-  const per = (draw[1] - draw[0]) * share;
-  const step = n > 1 ? ((draw[1] - draw[0]) * (1 - share)) / (n - 1) : 0;
   return els.map((el, i) => {
     const len = el.getTotalLength();
     el.style.strokeDasharray = `${len}`;
     el.style.strokeDashoffset = `${len}`;
-    return {
-      el,
-      len,
-      draw: [draw[0] + i * step, draw[0] + i * step + per],
-      undraw: [undraw[0], undraw[1]], // no stagger: the whole drawing fades together, nothing un-draws
-    };
+    return { el, len, draw: staggered(draw, i, n, share), undraw: [undraw[0], undraw[1]] };
   });
 }
 
-/** Advances every stroke and returns the group's mean progress (used to fade the dotted line while a city is up). */
-function setProgress(strokes: Stroke[], t: number): number {
+/** Window of the i-th of n strokes inside a staggered draw window. */
+function staggered(draw: Win, i: number, n: number, share = 0.5): Win {
+  const per = (draw[1] - draw[0]) * share;
+  const step = n > 1 ? ((draw[1] - draw[0]) * (1 - share)) / (n - 1) : 0;
+  return [draw[0] + i * step, draw[0] + i * step + per];
+}
+
+/** Advances every stroke and returns the group's mean progress. Windows may wrap past the loop end. */
+function setProgress(strokes: Stroke[], t: number, period: number): number {
   let sum = 0;
   for (const s of strokes) {
-    // Work in a frame that starts at this stroke's draw, so an undraw window that wraps past the loop end still follows it.
-    const tt = (t - s.draw[0] + PERIOD) % PERIOD;
+    const tt = (t - s.draw[0] + period) % period;
     const drawLen = s.draw[1] - s.draw[0];
-    const undrawAt = (s.undraw[0] - s.draw[0] + PERIOD) % PERIOD;
+    const undrawAt = (s.undraw[0] - s.draw[0] + period) % period;
     const undrawLen = s.undraw[1] - s.undraw[0];
     // Strokes stay fully inked through the undraw window: the drawing fades out as a whole rather than un-drawing.
     const p = tt < drawLen ? ease(tt / drawLen) : tt < undrawAt + undrawLen ? 1 : 0;
@@ -73,8 +71,80 @@ function setProgress(strokes: Stroke[], t: number): number {
   return strokes.length ? sum / strokes.length : 0;
 }
 
+/** Opacity of a drawing that fades out over `undraw`, measured from the start of its `draw` window (may wrap the loop). */
+function drawingOpacity(t: number, draw: Win, undraw: Win, period: number): number {
+  const tt = (t - draw[0] + period) % period;
+  const undrawAt = (undraw[0] - draw[0] + period) % period;
+  const undrawLen = undraw[1] - undraw[0];
+  if (tt < undrawAt) return 1;
+  if (tt < undrawAt + undrawLen) return 1 - ease((tt - undrawAt) / undrawLen);
+  return 1;
+}
+
+/**
+ * How much a city hides the dotted line: ramps up from the line's arrival to the end of the city's draw window,
+ * stays while the city holds, and ramps back down as the city fades. Zero otherwise (may wrap the loop).
+ */
+function lineHidden(t: number, arrive: number, drawEnd: number, undraw: Win, period: number): number {
+  const tt = (t - arrive + period) % period;
+  const rampLen = Math.max(0.05, drawEnd - arrive);
+  const undrawAt = (undraw[0] - arrive + period) % period;
+  const undrawLen = undraw[1] - undraw[0];
+  if (tt < rampLen) return ease(tt / rampLen);
+  if (tt < undrawAt) return 1;
+  if (tt < undrawAt + undrawLen) return 1 - ease((tt - undrawAt) / undrawLen);
+  return 0;
+}
+
+// ----------------------------------------------------------------------------- geometry
+
+interface Polyline {
+  pts: XY[];
+  at: number[];
+  len: number;
+}
+
+/** Points along a polyline with the cumulative length at each. */
+function measured(pts: XY[]): Polyline {
+  const at = [0];
+  for (let i = 1; i < pts.length; i++) at.push(at[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y));
+  return { pts, at, len: at[at.length - 1] };
+}
+
+/** First crossing of polyline `a` with polyline `b`, walking along `a`. Returns lengths along each. */
+function firstCrossing(a: Polyline, b: Polyline): { alongA: number; alongB: number } | null {
+  for (let i = 0; i < a.pts.length - 1; i++) {
+    const p = a.pts[i];
+    const p2 = a.pts[i + 1];
+    for (let j = 0; j < b.pts.length - 1; j++) {
+      const q = b.pts[j];
+      const q2 = b.pts[j + 1];
+      const d = (p2.x - p.x) * (q2.y - q.y) - (p2.y - p.y) * (q2.x - q.x);
+      if (Math.abs(d) < 1e-9) continue;
+      const u = ((q.x - p.x) * (q2.y - q.y) - (q.y - p.y) * (q2.x - q.x)) / d;
+      const v = ((q.x - p.x) * (p2.y - p.y) - (q.y - p.y) * (p2.x - p.x)) / d;
+      if (u >= 0 && u <= 1 && v >= 0 && v <= 1) {
+        return { alongA: a.at[i] + u * (a.at[i + 1] - a.at[i]), alongB: b.at[j] + v * (b.at[j + 1] - b.at[j]) };
+      }
+    }
+  }
+  return null;
+}
+
+const shift = (pts: XY[], dx: number, dy: number): XY[] => pts.map((p) => ({ x: p.x + dx, y: p.y + dy }));
+
+// ----------------------------------------------------------------------------- drawings
+
+/** A closed pen shape that hides whatever is behind it once drawn (the fill fades in with the stroke). */
+function solid(el: SVGPathElement): SVGPathElement {
+  el.setAttribute('fill', 'var(--paper)');
+  el.style.fillOpacity = '0';
+  el.dataset.solid = '1';
+  return el;
+}
+
 /** Three New York landmarks in a box `W` wide, `H` tall, standing on y = 0 at x = 0: Chrysler, Empire State, One WTC. */
-function skyline(W: number, H: number, seed: string): SVGPathElement[] {
+function skyline(W: number, H: number, seed: string): { els: SVGPathElement[]; shapes: XY[][] } {
   const chrysler = (x: number, w: number, h: number): XY[] => [
     { x, y: 0 }, { x, y: -h },
     { x: x + w * 0.12, y: -h - H * 0.06 }, { x: x + w * 0.28, y: -h - H * 0.06 },
@@ -95,20 +165,8 @@ function skyline(W: number, H: number, seed: string): SVGPathElement[] {
     { x, y: 0 }, { x: x + w * 0.06, y: -h }, { x: x + w * 0.5, y: -h }, { x: x + w * 0.5, y: -h - H * 0.3 },
     { x: x + w * 0.5, y: -h }, { x: x + w * 0.94, y: -h }, { x: x + w, y: 0 },
   ];
-  const shapes = [
-    chrysler(0.02 * W, 0.24 * W, 0.62 * H),
-    empire(0.36 * W, 0.26 * W, 0.78 * H),
-    wtc(0.7 * W, 0.28 * W, 0.86 * H),
-  ];
-  return shapes.map((pts, i) => solid(ink(wobbly(pts, `${seed}:b${i}`, 0.5, 5), 1.7)));
-}
-
-/** A closed pen shape that hides whatever is behind it once drawn (the fill fades in with the stroke). */
-function solid(el: SVGPathElement): SVGPathElement {
-  el.setAttribute('fill', 'var(--paper)');
-  el.style.fillOpacity = '0';
-  el.dataset.solid = '1';
-  return el;
+  const shapes = [chrysler(0.02 * W, 0.24 * W, 0.62 * H), empire(0.36 * W, 0.26 * W, 0.78 * H), wtc(0.7 * W, 0.28 * W, 0.86 * H)];
+  return { shapes, els: shapes.map((pts, i) => solid(ink(wobbly(pts, `${seed}:b${i}`, 0.5, 5), 1.7))) };
 }
 
 /**
@@ -116,7 +174,11 @@ function solid(el: SVGPathElement): SVGPathElement {
  * then the water, then one unhurried cable arch over everything. A paper-filled silhouette beneath hides the arc.
  * Box `W` x `H`, standing on y = 0.
  */
-function goldenGate(W: number, H: number, seed: string): { fill: SVGPathElement; water: SVGPathElement[]; poles: SVGPathElement[]; arch: SVGPathElement[] } {
+function goldenGate(
+  W: number,
+  H: number,
+  seed: string,
+): { fill: SVGPathElement; water: SVGPathElement[]; poles: SVGPathElement[]; arch: SVGPathElement[]; cable: XY[] } {
   const towerX = [W * 0.3, W * 0.7];
   const waterY = 0;
   const cableAt = (x: number): number => {
@@ -134,7 +196,11 @@ function goldenGate(W: number, H: number, seed: string): { fill: SVGPathElement;
   const wave: XY[] = [];
   for (let i = 0; i <= 10; i++) wave.push({ x: (W * i) / 10, y: waterY + (i % 2 ? -H * 0.05 : 0) });
 
-  const fill = svgEl('path', { d: wobbly([...cable, { x: W, y: waterY }, ...[...wave].reverse()], `${seed}:fill`, 0.5, 6), fill: 'var(--paper)', stroke: 'none' });
+  const fill = svgEl('path', {
+    d: wobbly([...cable, { x: W, y: waterY }, ...[...wave].reverse()], `${seed}:fill`, 0.5, 6),
+    fill: 'var(--paper)',
+    stroke: 'none',
+  });
   fill.style.fillOpacity = '0';
   const water = [ink(wobbly(wave, `${seed}:water`, 0.4, 5), 1.6)];
   const pole = (x: number, top: number, width: number, key: string) =>
@@ -149,8 +215,10 @@ function goldenGate(W: number, H: number, seed: string): { fill: SVGPathElement;
     pole(W * 0.85, cableAt(W * 0.85), 1.2, 's3'),
   ];
   const arch = [ink(wobbly(cable, `${seed}:arch`, 0.5, 6), 1.8)];
-  return { fill, water, poles, arch };
+  return { fill, water, poles, arch, cable };
 }
+
+// ----------------------------------------------------------------------------- scene
 
 export interface FlightScene {
   w: number;
@@ -158,6 +226,8 @@ export interface FlightScene {
   stop: () => void;
   /** Jump the loop clock to a given second (debugging aid). */
   seek: (t: number) => void;
+  /** The computed schedule, in seconds (debugging aid). */
+  timeline: Record<string, number | Win>;
 }
 
 export function drawFlight(
@@ -175,8 +245,17 @@ export function drawFlight(
   const to: XY = { x: w * 0.94, y: h * 0.76 };
   const ctrl: XY = { x: w * 0.5, y: -h * 0.1 };
   const arcD = `M${from.x} ${from.y} Q${ctrl.x} ${ctrl.y} ${to.x} ${to.y}`;
+  const arcPts: XY[] = [];
+  for (let i = 0; i <= 400; i++) {
+    const t = i / 400;
+    arcPts.push({
+      x: (1 - t) * (1 - t) * from.x + 2 * (1 - t) * t * ctrl.x + t * t * to.x,
+      y: (1 - t) * (1 - t) * from.y + 2 * (1 - t) * t * ctrl.y + t * t * to.y,
+    });
+  }
+  const arcGeom = measured(arcPts);
 
-  // The dotted arc is the traveller: a mask reveals it from SF towards NYC and hides it again on the way back.
+  // The dotted arc is the traveller: a mask reveals it from SF towards NYC, later from NYC back towards SF.
   const maskId = `${seed}-reveal`.replace(/[^a-zA-Z0-9_-]/g, '-');
   const defs = svgEl('defs');
   const mask = svgEl('mask', { id: maskId, maskUnits: 'userSpaceOnUse', x: -w, y: -h, width: w * 3, height: h * 3 });
@@ -201,13 +280,14 @@ export function drawFlight(
   // City drawings stand on the arc's end points: the bridge flush with its left end, the skyline flush with its right.
   const cityW = w * 0.34;
   const cityH = w * 0.2;
-  const nyc = svgEl('g', { transform: `translate(${(to.x - cityW).toFixed(1)} ${to.y.toFixed(1)})` });
-  const nycStrokes = skyline(cityW, cityH, `${seed}:nyc`);
-  nyc.append(...nycStrokes);
-  const sf = svgEl('g', { transform: `translate(${from.x.toFixed(1)} ${from.y.toFixed(1)})` });
+  const nycOrigin: XY = { x: to.x - cityW, y: to.y };
+  const nyc = svgEl('g', { transform: `translate(${nycOrigin.x.toFixed(1)} ${nycOrigin.y.toFixed(1)})` });
+  const city = skyline(cityW, cityH, `${seed}:nyc`);
+  nyc.append(...city.els);
+  const sfOrigin: XY = { x: from.x, y: from.y };
+  const sf = svgEl('g', { transform: `translate(${sfOrigin.x.toFixed(1)} ${sfOrigin.y.toFixed(1)})` });
   const bridge = goldenGate(cityW * 1.1, cityH * 0.9, `${seed}:sf`);
-  const sfStrokes = [...bridge.water, ...bridge.poles, ...bridge.arch];
-  sf.append(bridge.fill, ...sfStrokes);
+  sf.append(bridge.fill, ...bridge.water, ...bridge.poles, ...bridge.arch);
   svg.append(nyc, sf);
 
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -215,48 +295,89 @@ export function drawFlight(
     reveal.style.strokeDashoffset = '0';
     nyc.remove();
     sf.remove();
-    return { w, h: from.y + size * 1.05, stop: () => {}, seek: () => {} };
+    return { w, h: from.y + size * 1.05, stop: () => {}, seek: () => {}, timeline: {} };
   }
 
-  const phase = (a: number, b: number, [d0, d1]: readonly [number, number]): [number, number] => [d0 + (d1 - d0) * a, d0 + (d1 - d0) * b];
-  const nycInk = schedule(nycStrokes, T.nycDraw, T.nycUndraw);
+  // ---- Schedule from the geometry.
+  // Outbound: the tip travels from SF. Find where it first meets a building outline, work out when the tip gets
+  // there and when that building's pen would, and start the skyline so both are there at the same instant.
+  const fly1: Win = [0, FLY];
+  let nycDraw: Win = [FLY, FLY + NYC_DRAW];
+  let meetNYC = FLY;
+  const hits = city.shapes
+    .map((shape, i) => ({ i, hit: firstCrossing(arcGeom, measured(shift(shape, nycOrigin.x, nycOrigin.y))) }))
+    .filter((c) => c.hit !== null)
+    .sort((a, b) => a.hit!.alongA - b.hit!.alongA);
+  if (hits.length > 0) {
+    const { i, hit } = hits[0];
+    meetNYC = fly1[0] + FLY * easeInv(hit!.alongA / arcLen); // when the dotted tip gets there
+    const strokeLen = measured(city.shapes[i]).len;
+    const win = staggered([0, NYC_DRAW], i, city.shapes.length); // building i's window, relative to the draw start
+    const reach = win[0] + (win[1] - win[0]) * easeInv(hit!.alongB / strokeLen); // when its pen gets there
+    nycDraw = [meetNYC - reach, meetNYC - reach + NYC_DRAW];
+  }
+  const nycUndraw: Win = [nycDraw[1] + HOLD, nycDraw[1] + HOLD + FADE];
+  // Homeward: the tip travels from NYC and meets the bridge cable; the arch is the bridge's last stroke and takes
+  // the back half of its window.
+  const fly2: Win = [nycUndraw[0], nycUndraw[0] + FLY];
+  let sfDraw: Win = [fly2[1], fly2[1] + SF_DRAW];
+  let meetSF = fly2[1];
+  const cableHit = firstCrossing(measured([...arcPts].reverse()), measured(shift(bridge.cable, sfOrigin.x, sfOrigin.y)));
+  if (cableHit) {
+    meetSF = fly2[0] + FLY * easeInv(cableHit.alongA / arcLen);
+    const cableLen = measured(bridge.cable).len;
+    const archWin: Win = [SF_DRAW * 0.5, SF_DRAW]; // relative to the bridge's draw start
+    const reach = archWin[0] + (archWin[1] - archWin[0]) * easeInv(cableHit.alongB / cableLen);
+    sfDraw = [meetSF - reach, meetSF - reach + SF_DRAW];
+  }
+  const period = sfDraw[1] + HOLD; // the bridge fades as the next loop's outbound line sets off
+  const sfUndraw: Win = [period, period + FADE]; // wraps: the same as [0, FADE] of the next loop
+  const phase = (a: number, b: number, [d0, d1]: Win): Win => [d0 + (d1 - d0) * a, d0 + (d1 - d0) * b];
+
+  const nycInk = schedule(city.els, nycDraw, nycUndraw);
   const sfInk = [
-    ...schedule(bridge.poles, phase(0, 0.4, T.sfDraw), T.sfUndraw),
-    ...schedule(bridge.water, phase(0.38, 0.52, T.sfDraw), T.sfUndraw, 1),
-    ...schedule(bridge.arch, phase(0.5, 1, T.sfDraw), T.sfUndraw, 1),
+    ...schedule(bridge.poles, phase(0, 0.4, sfDraw), sfUndraw),
+    ...schedule(bridge.water, phase(0.38, 0.52, sfDraw), sfUndraw, 1),
+    ...schedule(bridge.arch, phase(0.5, 1, sfDraw), sfUndraw, 1),
   ];
+  const timeline: Record<string, number | Win> = { period, fly1, meetNYC, nycDraw, nycUndraw, fly2, meetSF, sfDraw, sfUndraw };
+
   const MARCH = 45; // px per second the dashes travel, three dash-plus-gap periods per second
   let start = performance.now();
   let raf = 0;
   const frame = (now: number) => {
-    const t = ((now - start) / 1000) % PERIOD;
+    const t = ((now - start) / 1000) % period;
     // The line draws itself out from SF, later back from NYC, dashes marching the way it is heading.
     let offset: number;
     let march: number;
-    if (t < T.fly1[1]) {
-      offset = arcLen * (1 - ease(between(t, T.fly1)));
-      march = -MARCH * (t - T.fly1[0]);
-    } else if (t < T.fly2[0]) {
+    if (t < fly1[1]) {
+      offset = arcLen * (1 - ease(between(t, fly1)));
+      march = -MARCH * (t - fly1[0]);
+    } else if (t < fly2[0]) {
       offset = 0;
-      march = -MARCH * (T.fly1[1] - T.fly1[0]);
-    } else if (t < T.fly2[1]) {
-      offset = -arcLen * (1 - ease(between(t, T.fly2))); // negative: revealed from the NYC end
-      march = MARCH * (t - T.fly2[0]);
+      march = -MARCH * FLY;
+    } else if (t < fly2[1]) {
+      offset = -arcLen * (1 - ease(between(t, fly2))); // negative: revealed from the NYC end
+      march = MARCH * (t - fly2[0]);
     } else {
       offset = 0;
-      march = MARCH * (T.fly2[1] - T.fly2[0]);
+      march = MARCH * FLY;
     }
     reveal.style.strokeDashoffset = `${offset}`;
     arc.style.strokeDashoffset = `${march}`;
-    const nycFade = drawingOpacity(t, T.nycDraw, T.nycUndraw);
-    const sfFade = drawingOpacity(t, T.sfDraw, T.sfUndraw);
+    const nycFade = drawingOpacity(t, nycDraw, nycUndraw, period);
+    const sfFade = drawingOpacity(t, sfDraw, sfUndraw, period);
     nyc.style.opacity = `${nycFade}`;
     sf.style.opacity = `${sfFade}`;
-    const nycUp = setProgress(nycInk, t) * nycFade;
-    const sfUp = setProgress(sfInk, t) * sfFade;
-    bridge.fill.style.fillOpacity = `${Math.min(1, sfUp * 1.5)}`;
-    // The line fades in step with the city: gone exactly when the last stroke lands, back as the city fades.
-    arc.style.opacity = `${1 - Math.min(1, Math.max(nycUp, sfUp))}`;
+    setProgress(nycInk, t, period);
+    bridge.fill.style.fillOpacity = `${Math.min(1, setProgress(sfInk, t, period) * sfFade * 1.5)}`;
+    // The line stays fully visible until it has arrived (so the pens meet in plain sight), then fades while the
+    // city finishes, stays hidden while the city holds, and returns as the city fades.
+    const hidden = Math.max(
+      lineHidden(t, fly1[1], nycDraw[1], nycUndraw, period),
+      lineHidden(t, fly2[1], sfDraw[1], sfUndraw, period),
+    );
+    arc.style.opacity = `${1 - hidden}`;
     raf = requestAnimationFrame(frame);
   };
   raf = requestAnimationFrame(frame);
@@ -270,5 +391,6 @@ export function drawFlight(
       start = performance.now() - t * 1000;
       frame(performance.now());
     },
+    timeline,
   };
 }
