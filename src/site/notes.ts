@@ -16,10 +16,7 @@ export interface NoteItem {
   links?: { text: string; href: string }[];
 }
 
-export type Figure =
-  | { kind: 'arc'; from: string; to: string }
-  | { kind: 'boxes'; a: string; b: string; label: string }
-  | { kind: 'rocket' };
+export type Figure = { kind: 'arc'; from: string; to: string } | { kind: 'rocket' };
 
 export interface Note {
   id: string;
@@ -55,14 +52,16 @@ export const notes: Note[] = [
     id: 'before',
     items: [
       L('before:'),
-      SUB('1) Whatnot: 2nd ML hire, 2021-23', { links: [link('Whatnot', 'https://www.whatnot.com')] }),
+      SUB('1) Smithery: co-founded. MCP identity for 300k+ humans', {
+        links: [link('Smithery', 'https://smithery.ai')],
+      }),
+      SUB('→ acquired by arcade.dev', { indent: 2 }),
       SUB('2) Stagehand @ Browserbase: tech lead + #1 contributor. in prod at Clay, Ramp, Lovable. 1m+ weekly npm downloads', {
         links: [link('Stagehand', 'https://github.com/browserbase/stagehand')],
       }),
-      SUB('3) Smithery: co-founded. first open agent identity product, MCP identity for 300k+ people', {
-        links: [link('Smithery', 'https://smithery.ai')],
+      SUB('3) Whatnot: 2nd ML hire. trained, deployed, and maintained prod recsys and experimentation engines', {
+        links: [link('Whatnot', 'https://www.whatnot.com')],
       }),
-      SUB('→ acquired by arcade.dev, 07/2026', { indent: 2 }),
     ],
     em: 21,
   },
@@ -74,39 +73,36 @@ export const notes: Note[] = [
   },
   {
     id: 'notebook',
-    items: [L('this notebook: 2 pages used.'), L('if I wrote it down, it mattered.'), L('write less → rabbithole less → actually do it')],
-    em: 17,
+    items: [
+      L('this notebook: 2 pages used.'),
+      L('if I wrote it down, it mattered.'),
+      L('write less → rabbithole less'),
+      L('irl my handwriting is neat (calligraphy too). this font is traced from it → alternates + ligatures so it never repeats exactly'),
+    ],
+    em: 19,
   },
   {
     id: 'humanity',
-    items: [L('humans rock', { underline: true }), SUB('- math'), SUB('- cured a pandemic'), SUB('- machines that think')],
+    items: [
+      L('humans rock', { underline: true }),
+      SUB('- math'),
+      SUB('- cured a pandemic'),
+      SUB('- machines that think', { gap: 1 }),
+      L("AI won't replace us. shouldn't either."),
+    ],
     brace: [1, 3],
-    em: 12,
+    em: 14,
   },
   { id: 'rocket', items: [], figure: { kind: 'rocket' }, em: 6 },
-  {
-    id: 'ai',
-    items: [L('AI should not and will not replace humans'), SUB('→ embrace our individual humanity')],
-    em: 18,
-  },
-  { id: 'with', items: [], figure: { kind: 'boxes', a: 'AI', b: 'humans', label: 'with, not instead of' }, em: 15 },
   {
     id: 'links',
     items: [
       L('links:'),
-      SUB('- twitter/x: @kamathematic', { links: [link('@kamathematic', 'https://x.com/kamathematic')] }),
-      SUB('- github: kamath', { links: [link('kamath', 'https://github.com/kamath')] }),
-      SUB('- linkedin: /in/kamath', { links: [link('/in/kamath', 'https://www.linkedin.com/in/kamath')] }),
+      SUB('- twitter/x', { links: [link('twitter/x', 'https://x.com/kamathematic')] }),
+      SUB('- github', { links: [link('github', 'https://github.com/kamath')] }),
+      SUB('- linkedin', { links: [link('linkedin', 'https://www.linkedin.com/in/kamath')] }),
     ],
-    em: 13,
-  },
-  {
-    id: 'hand',
-    items: [
-      L('irl my handwriting is neat (calligraphy too).'),
-      L('this font is traced from my notebook → alternates + ligatures so it never repeats exactly'),
-    ],
-    em: 20,
+    em: 9,
   },
   { id: 'todo', items: [X('make a website'), L('- keep it short'), L('- ship it')], em: 10 },
 ];

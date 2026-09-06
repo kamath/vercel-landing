@@ -2,9 +2,15 @@
 // so strikes, underlines, boxes, and braces can be drawn from the measured geometry. Everything snaps to the
 // paper grid: one text line per cell, left edges on vertical rules, baselines on horizontal rules.
 
-import { layoutWithLines, measureNaturalWidth, prepareWithSegments, type PreparedTextWithSegments } from '@chenglou/pretext';
+import {
+  layoutWithLines,
+  measureLineStats,
+  measureNaturalWidth,
+  prepareWithSegments,
+  type PreparedTextWithSegments,
+} from '@chenglou/pretext';
 import { rng } from '../variants.js';
-import { arrow, box, brace, ink, strike, svgEl, underline, wobbly, type XY } from './doodle.js';
+import { box, brace, ink, strike, svgEl, underline, wobbly, type XY } from './doodle.js';
 import { notes, type Figure, type Note, type NoteItem } from './notes.js';
 
 const FAMILY = '"Notebook Hand"';
@@ -13,7 +19,7 @@ const GUTTER_COLS = 1; // blank cells kept to the right of a block
 const GUTTER_ROWS = 1; // blank lines kept below a block
 
 function gridSize(width: number): number {
-  return width < 640 ? 26 : 30;
+  return width < 640 ? 26 : width < 1100 ? 30 : 34;
 }
 
 function fontOf(px: number): string {
@@ -30,6 +36,14 @@ interface Run {
   item: NoteItem;
   prepared: PreparedTextWithSegments;
   size: number;
+  /** Cells per line and indent, fixed per grid size. */
+  lh: number;
+  indent: number;
+}
+
+interface Cells {
+  cols: number;
+  rows: number;
 }
 
 class NoteView {
@@ -57,24 +71,51 @@ class NoteView {
     this.el.append(this.svg);
   }
 
-  /** One-time measurement per grid size; layout() is then pure arithmetic. */
+  /** One-time measurement per grid size; everything after is pure arithmetic until the DOM is written. */
   prepare(grid: number): void {
     if (grid === this.grid) return;
     this.grid = grid;
     const base = grid * 0.78 * this.scale;
     this.runs = this.note.items.map((item) => {
       const s = Math.round(base * (item.size ?? 1) * 10) / 10;
-      return { item, prepared: prepareWithSegments(item.text, fontOf(s)), size: s };
+      return {
+        item,
+        prepared: prepareWithSegments(item.text, fontOf(s)),
+        size: s,
+        lh: grid * Math.max(1, Math.ceil((item.size ?? 1) - 0.3)),
+        indent: (item.indent ?? 0) * grid,
+      };
     });
     this.width = -1;
   }
 
-  layout(available: number): void {
+  /** The width this section would like, given the paper width. */
+  preferredWidth(available: number): number {
+    const size = this.grid * 0.78 * this.scale;
+    return Math.max(3 * this.grid, Math.min(available - PAD * 2, (this.note.em ?? 16) * size * this.stretch));
+  }
+
+  /** Size in grid cells at a given width, without touching the DOM. */
+  measure(maxW: number): Cells {
     const grid = this.grid;
-    const size = grid * 0.78 * this.scale;
-    const maxW = Math.max(3 * grid, Math.min(available - PAD * 2, (this.note.em ?? 16) * size * this.stretch));
+    if (this.note.figure) {
+      const { w, h } = figureSize(this.note.figure, maxW, grid);
+      return { cols: Math.ceil(w / grid) + GUTTER_COLS, rows: Math.ceil(h / grid) + GUTTER_ROWS };
+    }
+    let y = 0;
+    let right = 0;
+    for (const run of this.runs) {
+      const stats = measureLineStats(run.prepared, lineWidth(maxW, run.indent));
+      y += stats.lineCount * run.lh + (run.item.gap ?? 0) * grid;
+      right = Math.max(right, run.indent + stats.maxLineWidth);
+    }
+    return { cols: Math.ceil(right / grid) + GUTTER_COLS, rows: Math.round(y / grid) + GUTTER_ROWS };
+  }
+
+  layout(maxW: number): void {
     if (maxW === this.width) return;
     this.width = maxW;
+    const grid = this.grid;
 
     const svg = this.svg;
     svg.replaceChildren();
@@ -91,11 +132,8 @@ class NoteView {
     const bottoms: number[] = [];
 
     this.runs.forEach((run, idx) => {
-      const indent = (run.item.indent ?? 0) * grid;
-      const lh = grid * Math.max(1, Math.ceil((run.item.size ?? 1) - 0.3));
-      // Small safety factor: the font's contextual alternates carry per-variant side bearings,
-      // so a word measured in isolation can differ slightly from the same word in running text.
-      const { lines } = layoutWithLines(run.prepared, Math.max(40, maxW - indent) * 0.96, lh);
+      const { indent, lh } = run;
+      const { lines } = layoutWithLines(run.prepared, lineWidth(maxW, indent), lh);
       tops.push(y);
       const text = svgEl('text', { 'font-family': FAMILY, 'font-size': run.size });
       lines.forEach((line, i) => {
@@ -117,17 +155,16 @@ class NoteView {
         for (const piece of pieces) {
           const span = svgEl('tspan', pieces[0] === piece ? { x, y: baseline } : {});
           span.textContent = piece.str;
+          const w = labelWidth(piece.str, run.size);
           if (piece.href) {
             const a = svgEl('a', { href: piece.href, target: '_blank', rel: 'noopener' });
             a.append(span);
             text.append(a);
-            const w = labelWidth(piece.str, run.size);
             doodles.append(underline(x, x + w, baseline + run.size * 0.16, `${seed}:${piece.str}`));
-            x += w;
           } else {
             text.append(span);
-            x += labelWidth(piece.str, run.size);
           }
+          x += w;
         }
         right = Math.max(right, indent + line.width);
         if (run.item.strike) doodles.append(strike(indent, indent + line.width, baseline - run.size * 0.22, seed));
@@ -165,11 +202,26 @@ class NoteView {
   }
 }
 
+/**
+ * Usable line width. The small safety factor covers the font's contextual alternates, which carry
+ * per-variant side bearings, so a word measured alone can differ slightly from the same word in running text.
+ */
+function lineWidth(maxW: number, indent: number): number {
+  return Math.max(40, maxW - indent) * 0.96;
+}
+
 // ----------------------------------------------------------------------------- figures
 
 function labelWidth(text: string, size: number): number {
   // pre-wrap keeps leading and trailing spaces, which matter when measuring the prefix before an inline link.
   return measureNaturalWidth(prepareWithSegments(text, fontOf(size), { whiteSpace: 'pre-wrap' }));
+}
+
+function figureSize(fig: Figure, w: number, grid: number): { w: number; h: number } {
+  const size = grid * 0.78;
+  if (fig.kind === 'arc') return { w, h: w * 0.5 * 0.78 + size * 1.05 };
+  const h = grid * 3;
+  return { w: Math.max(w, h * 0.7), h };
 }
 
 function drawFigure(svg: SVGSVGElement, fig: Figure, w: number, grid: number, seed: string): { w: number; h: number } {
@@ -184,15 +236,13 @@ function drawFigure(svg: SVGSVGElement, fig: Figure, w: number, grid: number, se
     path.setAttribute('stroke-dasharray', '7 8');
     svg.append(path);
     const s = size * 0.55;
-    // One plane each way, riding the arc, the return flight a lane below.
+    // One plane each way, both riding the dotted line at different points along it.
     const plane = (t: number, reverse: boolean) => {
       const q = (a: number, b: number, c: number) => (1 - t) * (1 - t) * a + 2 * (1 - t) * t * b + t * t * c;
       const dx = 2 * (1 - t) * (ctrl.x - from.x) + 2 * t * (to.x - ctrl.x);
       const dy = 2 * (1 - t) * (ctrl.y - from.y) + 2 * t * (to.y - ctrl.y);
-      const len = Math.hypot(dx, dy) || 1;
-      const lane = reverse ? size * 0.75 : 0;
-      const px = q(from.x, ctrl.x, to.x) - (dy / len) * lane;
-      const py = q(from.y, ctrl.y, to.y) + (dx / len) * lane;
+      const px = q(from.x, ctrl.x, to.x);
+      const py = q(from.y, ctrl.y, to.y);
       const ang = (Math.atan2(dy, dx) * 180) / Math.PI + (reverse ? 180 : 0);
       const el = ink(
         wobbly(
@@ -209,30 +259,11 @@ function drawFigure(svg: SVGSVGElement, fig: Figure, w: number, grid: number, se
       el.setAttribute('transform', `translate(${px.toFixed(1)} ${py.toFixed(1)}) rotate(${ang.toFixed(1)})`);
       return el;
     };
-    svg.append(plane(0.4, false), plane(0.62, true));
+    svg.append(plane(0.3, false), plane(0.72, true));
     svg.append(textEl(from.x - size * 0.3, from.y + size * 0.95, size * 0.85, fig.from));
     const toW = labelWidth(fig.to, size * 0.85);
     svg.append(textEl(to.x - toW + size * 0.3, to.y + size * 0.95, size * 0.85, fig.to));
     return { w, h: from.y + size * 1.05 };
-  }
-
-  if (fig.kind === 'boxes') {
-    const s = size * 0.95;
-    const padX = s * 0.5;
-    const boxH = grid * 1.4;
-    const aW = labelWidth(fig.a, s) + padX * 2;
-    const bW = labelWidth(fig.b, s) + padX * 2;
-    const lw = labelWidth(fig.label, s * 0.8);
-    const gap = Math.max(s * 3, lw + s * 1.2, w - aW - bW);
-    const y0 = grid * 0.3;
-    svg.append(box(0, y0, aW, boxH, `${seed}:a`));
-    svg.append(textEl(padX, y0 + boxH * 0.72, s, fig.a));
-    const bx = aW + gap;
-    svg.append(box(bx, y0 + 3, bW, boxH, `${seed}:b`));
-    svg.append(textEl(bx + padX, y0 + boxH * 0.72 + 3, s, fig.b));
-    svg.append(arrow({ x: aW + 8, y: y0 + boxH * 0.5 }, { x: bx - 8, y: y0 + boxH * 0.52 }, `${seed}:arrow`, 0.08));
-    svg.append(textEl(aW + gap / 2 - lw / 2, y0 + boxH * 0.5 - s * 0.35, s * 0.8, fig.label));
-    return { w: aW + gap + bW, h: y0 + boxH + grid * 0.3 };
   }
 
   // rocket: a small doodle, three grid rows tall.
@@ -263,19 +294,38 @@ function drawFigure(svg: SVGSVGElement, fig: Figure, w: number, grid: number, se
 // ----------------------------------------------------------------------------- page packing
 
 /**
- * Fill the page the way a hand fills paper: every section goes into the first free rectangle of grid cells
- * found scanning top-to-bottom, left-to-right, so short notes slide into gaps beside taller ones.
+ * Occupancy of the page in grid cells, with a summed-area table so "is this rectangle free" is O(1).
+ * The table is kept incrementally: placing a section only dirties rows at and below it.
  */
-function pack(views: NoteView[], cols: number): number {
-  const stride = cols + 1;
-  let rows = 128;
-  let grid = new Uint8Array(cols * rows);
-  // Summed-area table over the occupancy grid, so "is this rectangle free" is O(1).
-  // It is kept incrementally: placing a section only dirties rows at and below it.
-  let t = new Uint32Array(stride * (rows + 1));
-  let validRows = 0;
-  const extend = (upTo: number) => {
-    for (let y = validRows + 1; y <= upTo; y++) {
+class Paper {
+  private rows = 128;
+  private grid: Uint8Array;
+  private t: Uint32Array;
+  private validRows = 0;
+  bottom = 0;
+  private readonly stride: number;
+
+  constructor(readonly cols: number) {
+    this.stride = cols + 1;
+    this.grid = new Uint8Array(cols * this.rows);
+    this.t = new Uint32Array(this.stride * (this.rows + 1));
+  }
+
+  private ensure(rowsNeeded: number): void {
+    if (rowsNeeded <= this.rows) return;
+    const next = Math.max(rowsNeeded, this.rows * 2);
+    const g2 = new Uint8Array(this.cols * next);
+    g2.set(this.grid);
+    this.grid = g2;
+    const t2 = new Uint32Array(this.stride * (next + 1));
+    t2.set(this.t);
+    this.t = t2;
+    this.rows = next;
+  }
+
+  private extend(upTo: number): void {
+    const { cols, stride, grid, t } = this;
+    for (let y = this.validRows + 1; y <= upTo; y++) {
       const row = y * stride;
       const prev = (y - 1) * stride;
       const g = (y - 1) * cols;
@@ -285,43 +335,61 @@ function pack(views: NoteView[], cols: number): number {
         t[row + x] = acc + t[prev + x];
       }
     }
-    validRows = Math.max(validRows, upTo);
-  };
-  let bottom = 0;
+    this.validRows = Math.max(this.validRows, upTo);
+  }
 
-  for (const v of views) {
-    const wc = Math.min(cols, v.cols);
-    const hc = v.rows;
-    if (bottom + hc + 1 > rows) {
-      const nextRows = rows * 2;
-      const g2 = new Uint8Array(cols * nextRows);
-      g2.set(grid);
-      grid = g2;
-      const t2 = new Uint32Array(stride * (nextRows + 1));
-      t2.set(t);
-      t = t2;
-      rows = nextRows;
-    }
-    extend(bottom + hc);
-    let px = 0;
-    let py = bottom;
-    outer: for (let y = 0; y < bottom; y++) {
+  /** First free spot scanning top-to-bottom, left-to-right. The row at the bottom is always free. */
+  find(wc: number, hc: number): { x: number; y: number } {
+    wc = Math.min(wc, this.cols);
+    this.ensure(this.bottom + hc + 1);
+    this.extend(this.bottom + hc);
+    const { stride, t, cols } = this;
+    for (let y = 0; y < this.bottom; y++) {
       const top = y * stride;
       const bot = (y + hc) * stride;
       for (let x = 0; x + wc <= cols; x++) {
-        if (t[bot + x + wc] - t[top + x + wc] - t[bot + x] + t[top + x] === 0) {
-          px = x;
-          py = y;
-          break outer;
-        }
+        if (t[bot + x + wc] - t[top + x + wc] - t[bot + x] + t[top + x] === 0) return { x, y };
       }
     }
-    for (let y = py; y < py + hc; y++) grid.fill(1, y * cols + px, y * cols + px + wc);
-    validRows = Math.min(validRows, py);
-    v.el.dataset.cell = `${px},${py}`;
-    bottom = Math.max(bottom, py + hc);
+    return { x: 0, y: this.bottom };
   }
-  return bottom;
+
+  place(x: number, y: number, wc: number, hc: number): void {
+    wc = Math.min(wc, this.cols);
+    this.ensure(y + hc + 1);
+    for (let r = y; r < y + hc; r++) this.grid.fill(1, r * this.cols + x, r * this.cols + x + wc);
+    this.validRows = Math.min(this.validRows, y);
+    this.bottom = Math.max(this.bottom, y + hc);
+  }
+}
+
+/**
+ * Fill the page the way a hand fills paper. Each section tries its preferred width and a few narrower ones,
+ * and takes whichever placement lands highest (then leftmost, then widest): a note happily squeezes into
+ * the gap beside a wider neighbour instead of starting a new row below it.
+ */
+function pack(views: NoteView[], cols: number, grid: number): number {
+  const paper = new Paper(cols);
+  const available = cols * grid;
+  for (const v of views) {
+    const pref = v.preferredWidth(available);
+    const minW = Math.max(4 * grid, pref * 0.7);
+    let best: { x: number; y: number; w: number; cells: Cells } | null = null;
+    for (let w = pref; w >= minW; w -= grid) {
+      const cells = v.measure(w);
+      const spot = paper.find(cells.cols, cells.rows);
+      if (!best || spot.y < best.y || (spot.y === best.y && spot.x < best.x)) best = { ...spot, w, cells };
+      if (spot.y === 0 && spot.x === 0) break;
+    }
+    const { x, y, w } = best!;
+    v.layout(w);
+    // The rendered size normally equals the measured one; if rounding ever disagrees, re-seat it safely.
+    let spot = { x, y };
+    if (v.cols !== best!.cells.cols || v.rows !== best!.cells.rows) spot = paper.find(v.cols, v.rows);
+    paper.place(spot.x, spot.y, v.cols, v.rows);
+    v.el.dataset.cell = `${spot.x},${spot.y}`;
+  }
+  return paper.bottom;
 }
 
 async function main(): Promise<void> {
@@ -330,7 +398,7 @@ async function main(): Promise<void> {
   const views = notes.map((n) => new NoteView(n));
   for (const v of views) page.append(v.el);
 
-  const timings: { width: number; text: number; pack: number }[] = [];
+  const timings: { width: number; ms: number }[] = [];
   const doLayout = () => {
     const width = page.clientWidth;
     const grid = gridSize(width);
@@ -340,12 +408,8 @@ async function main(): Promise<void> {
     page.style.setProperty('--origin', `${margin}px`);
 
     const t0 = performance.now();
-    for (const v of views) {
-      v.prepare(grid);
-      v.layout(cols * grid);
-    }
-    const t1 = performance.now();
-    const rows = pack(views, cols);
+    for (const v of views) v.prepare(grid);
+    const rows = pack(views, cols, grid);
     for (const v of views) {
       const [cx, cy] = v.el.dataset.cell!.split(',').map(Number);
       // The SVG's viewBox starts PAD before the text origin, so back the element up by PAD to land on the rule.
@@ -353,8 +417,7 @@ async function main(): Promise<void> {
       v.el.style.top = `${margin + cy * grid - PAD}px`;
     }
     page.style.height = `${(rows + 2) * grid + margin}px`;
-    const t2 = performance.now();
-    timings.push({ width, text: Math.round((t1 - t0) * 100) / 100, pack: Math.round((t2 - t1) * 100) / 100 });
+    timings.push({ width, ms: Math.round((performance.now() - t0) * 100) / 100 });
     if (timings.length > 20) timings.shift();
   };
   let pending = 0;
