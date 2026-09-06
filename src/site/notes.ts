@@ -54,12 +54,9 @@ export const notes: Note[] = [
     id: 'before',
     items: [
       L('before:'),
-      SUB('1) Smithery: co-founded. MCP identity for 300k+ humans', {
-        links: [link('Smithery', 'https://smithery.ai')],
-      }),
-      SUB('→ acquired by arcade.dev', { indent: 2 }),
-      SUB('2) Stagehand @ Browserbase: tech lead + #1 contributor. in prod at Clay, Ramp, Lovable. 1m+ weekly npm downloads', {
-        links: [link('Stagehand', 'https://github.com/browserbase/stagehand')],
+      SUB('1) Smithery: co-founded. MCP identity for 300k+ humans. Acquired by arcade.dev.', { links: [link('Smithery', 'https://smithery.ai')] }),
+      SUB('2) Browserbase: tech lead and co-creator of Stagehand. Used in prod at Clay, Ramp, and Lovable.', {
+        links: [link('Browserbase', 'https://www.browserbase.com'), link('Stagehand', 'https://github.com/browserbase/stagehand')],
       }),
       SUB('3) Whatnot: 2nd ML hire. trained, deployed, and maintained prod recsys and experimentation engines', {
         links: [link('Whatnot', 'https://www.whatnot.com')],
