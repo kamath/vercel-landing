@@ -11,14 +11,16 @@ const T = {
   fly1: [0.0, 4.0],
   sfUndraw: [0.0, 2.5],
   sfBack: [2.2, 2.6],
-  nycFade: [3.1, 3.5],
-  nycDraw: [3.2, 4.4],
+  nycFade: [2.5, 2.9],
+  nycDraw: [2.6, 3.8],
+  nycApproach: [3.2, 3.95],
   turn1: [5.6, 6.0],
   fly2: [6.0, 10.0],
   nycUndraw: [6.0, 7.0],
   nycBack: [6.8, 7.2],
-  sfFade: [9.1, 9.5],
-  sfDraw: [9.2, 10.4],
+  sfFade: [8.5, 8.9],
+  sfDraw: [8.6, 9.8],
+  sfApproach: [9.2, 9.95],
   turn2: [11.6, 12.0],
 } as const;
 
@@ -249,9 +251,9 @@ const nyc = svgEl('g', { transform: `translate(${(toRight - cityW).toFixed(1)} $
     // Parked inside a drawn city the plane is out of sight; in the air it is always visible (the city's
     // solid shapes sit above it, so it disappears into the skyline on approach and emerges on departure).
     let visible: number;
-    if (t < T.fly1[1]) visible = Math.min(1, t / 0.4);
+    if (t < T.fly1[1]) visible = Math.min(1, t / 0.4) * (1 - between(t, T.nycApproach)); // fades out on approach
     else if (t < T.turn1[1]) visible = 1 - Math.min(1, nycUp * 2);
-    else if (t < T.fly2[1]) visible = Math.min(1, (t - T.fly2[0]) / 0.4);
+    else if (t < T.fly2[1]) visible = Math.min(1, (t - T.fly2[0]) / 0.4) * (1 - between(t, T.sfApproach));
     else visible = 1 - Math.min(1, sfUp * 2);
     plane.style.opacity = `${visible}`;
     raf = requestAnimationFrame(frame);
