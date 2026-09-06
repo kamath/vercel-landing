@@ -4,22 +4,22 @@
 
 import { ink, svgEl, wobbly, type XY } from './doodle.js';
 
-const PERIOD = 18; // seconds per round trip
+const PERIOD = 12; // seconds per round trip
 
-// Timeline in seconds.
+// Timeline in seconds. Cities start drawing as the plane approaches and undraw as it leaves.
 const T = {
-  fly1: [0.5, 4.5],
-  nycFade: [4.5, 5.0],
-  nycDraw: [4.8, 7.3],
-  nycUndraw: [8.3, 9.8],
-  nycBack: [9.4, 9.9],
-  turn1: [9.6, 10.0],
-  fly2: [10.0, 14.0],
-  sfFade: [14.0, 14.5],
-  sfDraw: [14.3, 16.3],
-  sfUndraw: [17.0, 17.6],
-  sfBack: [17.4, 17.9],
-  turn2: [17.6, 18.0],
+  fly1: [0.0, 4.0],
+  sfUndraw: [0.0, 1.0],
+  sfBack: [0.8, 1.2],
+  nycFade: [3.1, 3.5],
+  nycDraw: [3.2, 4.4],
+  turn1: [5.6, 6.0],
+  fly2: [6.0, 10.0],
+  nycUndraw: [6.0, 7.0],
+  nycBack: [6.8, 7.2],
+  sfFade: [9.1, 9.5],
+  sfDraw: [9.2, 10.4],
+  turn2: [11.6, 12.0],
 } as const;
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
@@ -53,7 +53,9 @@ function schedule(els: SVGPathElement[], draw: readonly [number, number], undraw
   });
 }
 
-function setProgress(strokes: Stroke[], t: number): void {
+/** Advances every stroke and returns the group's mean progress, which drives the paper backing behind it. */
+function setProgress(strokes: Stroke[], t: number): number {
+  let sum = 0;
   for (const s of strokes) {
     let p: number;
     if (t < s.draw[0]) p = 0;
@@ -62,7 +64,9 @@ function setProgress(strokes: Stroke[], t: number): void {
     else if (t < s.undraw[1]) p = 1 - ease(between(t, s.undraw));
     else p = 0;
     s.el.style.strokeDashoffset = `${s.len * (1 - p)}`;
+    sum += p;
   }
+  return strokes.length ? sum / strokes.length : 0;
 }
 
 /** A lower-Manhattan-ish skyline in a box `W` wide, `H` tall, standing on y = 0 at x = 0. */
@@ -185,12 +189,16 @@ export function drawFlight(
   // City drawings stand on the label baselines, in place of the labels.
   const cityW = w * 0.34;
   const cityH = w * 0.2;
+  const backing = (wd: number, ht: number) =>
+    svgEl('rect', { x: -3, y: -ht - 4, width: wd + 6, height: ht + 8, fill: 'var(--paper)', opacity: 0 });
   const nyc = svgEl('g', { transform: `translate(${(toRight - cityW).toFixed(1)} ${(to.y + size * 0.95).toFixed(1)})` });
   const nycStrokes = skyline(cityW, cityH, `${seed}:nyc`);
-  nyc.append(...nycStrokes);
+  const nycBacking = backing(cityW, cityH * 1.05);
+  nyc.append(nycBacking, ...nycStrokes);
   const sf = svgEl('g', { transform: `translate(${(from.x - size * 0.3).toFixed(1)} ${baseline.toFixed(1)})` });
   const sfStrokes = goldenGate(cityW * 1.1, cityH * 0.9, `${seed}:sf`);
-  sf.append(...sfStrokes);
+  const sfBacking = backing(cityW * 1.1, cityH * 0.9);
+  sf.append(sfBacking, ...sfStrokes);
   svg.append(nyc, sf);
 
   const s = size * 0.55;
@@ -220,7 +228,8 @@ export function drawFlight(
     return { w, h: from.y + size * 1.05, stop: () => {} };
   }
 
-  const strokes = [...schedule(nycStrokes, T.nycDraw, T.nycUndraw), ...schedule(sfStrokes, T.sfDraw, T.sfUndraw)];
+  const nycInk = schedule(nycStrokes, T.nycDraw, T.nycUndraw);
+  const sfInk = schedule(sfStrokes, T.sfDraw, T.sfUndraw);
   const start = performance.now();
   let raf = 0;
   const frame = (now: number) => {
@@ -236,7 +245,8 @@ export function drawFlight(
     // Labels give way to the drawings and come back.
     toText.style.opacity = `${1 - between(t, T.nycFade) + between(t, T.nycBack)}`;
     fromText.style.opacity = `${1 - between(t, T.sfFade) + between(t, T.sfBack)}`;
-    setProgress(strokes, t);
+    nycBacking.style.opacity = `${Math.min(1, setProgress(nycInk, t) * 1.6)}`;
+    sfBacking.style.opacity = `${Math.min(1, setProgress(sfInk, t) * 1.6)}`;
     raf = requestAnimationFrame(frame);
   };
   raf = requestAnimationFrame(frame);
