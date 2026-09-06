@@ -4,12 +4,12 @@ import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 
 const root = join(process.cwd(), 'dist');
-const types: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.otf': 'font/otf', '.svg': 'image/svg+xml' };
+const types: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.otf': 'font/otf', '.svg': 'image/svg+xml', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css' };
 const port = Number(process.env.PORT ?? 4173);
 
 createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', 'http://localhost');
-  const file = join(root, normalize(url.pathname === '/' ? '/preview.html' : url.pathname));
+  const file = join(root, normalize(url.pathname === '/' ? '/index.html' : url.pathname));
   try {
     const data = await readFile(file);
     res.writeHead(200, { 'content-type': types[extname(file)] ?? 'application/octet-stream', 'cache-control': 'no-store' });

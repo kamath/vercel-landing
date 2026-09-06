@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@chenglou/pretext':
+        specifier: 0.0.8
+        version: 0.0.8
       js-angusj-clipper:
         specifier: 1.3.1
         version: 1.3.1
@@ -21,6 +24,9 @@ importers:
       '@types/opentype.js':
         specifier: 1.3.10
         version: 1.3.10
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
       tsx:
         specifier: ^4.23.13
         version: 4.23.13
@@ -29,6 +35,9 @@ importers:
         version: 5.9.3
 
 packages:
+
+  '@chenglou/pretext@0.0.8':
+    resolution: {integrity: sha512-yqm2GMxnPI7VHcHwe84P8ZF0JK/2d2DMKPqMN+s95jQhwDMYYXKVFVJUMEaVWckQStdsjdLav/0Vu+d9YbtGxA==}
 
   '@esbuild/aix-ppc64@0.28.2':
     resolution: {integrity: sha512-XExcO+dvLKvVtNTibSTBej1NCAbaGhWn9Ww1ZPx80qsahhPFe/8jgWP0IchNe0F3HwkU7n8ejhH8bjonqht8mQ==}
@@ -230,6 +239,8 @@ packages:
     resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
 
 snapshots:
+
+  '@chenglou/pretext@0.0.8': {}
 
   '@esbuild/aix-ppc64@0.28.2':
     optional: true

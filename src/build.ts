@@ -1,6 +1,7 @@
 // Build NotebookHand-Regular.otf: skeleton -> variants -> outlines -> CFF font + GSUB features.
 
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { build as esbuild } from 'esbuild';
 import opentype from 'opentype.js';
 import { glyphs as defs } from './glyphs.js';
 import type { Contour } from './geometry.js';
@@ -152,6 +153,20 @@ export function buildGSUBTable(gid: Map<string, number>, built: BuiltGlyph[]): U
   ]);
 }
 
+/** Bundle the notebook homepage (Pretext-laid-out notes) into dist. */
+export async function buildSite(dir: string): Promise<void> {
+  await esbuild({
+    entryPoints: ['src/site/main.ts'],
+    bundle: true,
+    format: 'esm',
+    target: 'es2022',
+    outfile: `${dir}/site.js`,
+    minify: true,
+    logLevel: 'silent',
+  });
+  copyFileSync('src/site/index.html', `${dir}/index.html`);
+}
+
 export async function buildFont(): Promise<{ bytes: Uint8Array; built: BuiltGlyph[] }> {
   const built = await buildGlyphs();
 
@@ -193,6 +208,7 @@ if (isMain) {
   const otf = 'dist/NotebookHand-Regular.otf';
   writeFileSync(otf, bytes);
   writeSpecimen(built, 'dist');
+  await buildSite('dist');
   const segs = built.reduce((n, g) => n + g.contours.reduce((m, c) => m + c.segs.length, 0), 0);
   console.log(`wrote ${otf} (${(bytes.length / 1024).toFixed(1)} KB, ${built.length + 1} glyphs, ${segs} path segments)`);
 }

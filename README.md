@@ -29,3 +29,7 @@ pnpm typecheck
 ## Editing letterforms
 
 Edit the point lists in `src/glyphs.ts`. Coordinates are upright font units (1000 per em): baseline 0, x-height 400, ascender 700, cap height 670, descender −220. The slant is applied at build time. `s(x0, y0, x1, y1, …)` is a smooth stroke through those points, `O(...)` a closed loop, and `C(x, y)` marks a corner.
+
+## Homepage
+
+`pnpm dev` serves `dist/index.html`: the two notebook pages re-set in the font. Each section is measured and line-broken with [Pretext](https://github.com/chenglou/pretext) (`prepareWithSegments` once, `layoutWithLines` on every resize) and rendered as SVG text, so the hand-drawn strikethroughs, underlines, boxes, and braces are placed from the measured line widths. A few pure-SVG sketches (the flight arc, the client/server boxes, the horizontal/vertical axes) are mixed in. Sections pack masonry-style into a responsive grid with per-section rotation, offset, and size jitter, so the page stays cluttered like the original at any width. Source lives in `src/site/`.
