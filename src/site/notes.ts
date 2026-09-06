@@ -74,10 +74,10 @@ export const notes: Note[] = [
   {
     id: 'notebook',
     items: [
-      L('this notebook: 2 pages used.'),
-      L('if I wrote it down, it mattered.'),
+      L('my handwriting is neat irl! (calligraphy too)'),
+      L('this font is traced from it, with alternates and ligatures so nothing repeats exactly.'),
+      L('I only used two pages in my notebook.'),
       L('write less → rabbithole less'),
-      L('irl my handwriting is neat (calligraphy too). this font is traced from it → alternates + ligatures so it never repeats exactly'),
     ],
     em: 19,
   },
