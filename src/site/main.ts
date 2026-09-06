@@ -15,11 +15,13 @@ import { rng } from '../variants.js';
 import { box, brace, ink, strike, svgEl, underline, wobbly, type XY } from './doodle.js';
 import { drawFlight } from './flight.js';
 import { notes, type Figure, type Note, type NoteItem } from './notes.js';
+import { aspectOf } from './photos.js';
 
 const FAMILY = '"Notebook Hand"';
 const PAD = 8; // room around each block for doodles that overshoot the text
 const GUTTER_COLS = 1; // blank cells kept to the right of a block
 const GUTTER_ROWS = 1; // blank lines kept below a block
+const MAX_PAGE = 1280; // widest the written page gets; a wider window just gets more margin
 
 function gridSize(width: number): number {
   return width < 640 ? 26 : width < 1100 ? 30 : 34;
@@ -280,11 +282,41 @@ function labelWidth(text: string, size: number): number {
 function figureSize(fig: Figure, w: number, grid: number): { w: number; h: number } {
   const size = grid * 0.78;
   if (fig.kind === 'arc') return { w, h: w * 0.5 * 0.78 + size * 1.05 };
+  if (fig.kind === 'photo') return photoSize(fig, w, grid);
   const h = grid * 3;
   return { w: Math.max(w, h * 0.7), h };
 }
 
+/** White border around a print. */
+const matOf = (grid: number) => Math.max(4, Math.round(grid * 0.2));
+
+function photoSize(fig: Extract<Figure, { kind: 'photo' }>, w: number, grid: number): { w: number; h: number } {
+  const mat = matOf(grid);
+  return { w, h: (w - mat * 2) / aspectOf(fig.src) + mat * 2 };
+}
+
+/** A print stuck onto the page: the photo sits on a white border, tilted a few degrees. */
+function drawPhoto(svg: SVGSVGElement, fig: Extract<Figure, { kind: 'photo' }>, w: number, grid: number, seed: string): { w: number; h: number } {
+  const r = rng(`photo:${seed}`);
+  const mat = matOf(grid);
+  const imgW = w - mat * 2;
+  const imgH = imgW / aspectOf(fig.src); // never rounded: rounding here would crop the photo to fit
+  const printH = imgH + mat * 2;
+
+  const g = svgEl('g', { class: 'photo', transform: `rotate(${((r() - 0.5) * 5).toFixed(2)} ${(w / 2).toFixed(1)} ${(printH / 2).toFixed(1)})` });
+  g.append(svgEl('rect', { class: 'print', x: 0, y: 0, width: w, height: printH }));
+  const img = svgEl('image', { x: mat, y: mat, width: imgW, height: imgH, preserveAspectRatio: 'xMidYMid slice', role: 'img', 'aria-label': fig.alt });
+  img.setAttribute('href', fig.src);
+  const title = svgEl('title');
+  title.textContent = fig.alt;
+  img.append(title);
+  g.append(img);
+  svg.append(g);
+  return { w, h: printH };
+}
+
 function drawFigure(svg: SVGSVGElement, fig: Exclude<Figure, { kind: 'arc' }>, w: number, grid: number, seed: string): { w: number; h: number } {
+  if (fig.kind === 'photo') return drawPhoto(svg, fig, w, grid, seed);
 
   // rocket: a small doodle, three grid rows tall.
   const h = grid * 3;
@@ -424,9 +456,12 @@ async function main(): Promise<void> {
     if (width === 0) return; // hidden or not yet sized: the ResizeObserver will call back when there is paper
     const grid = gridSize(width);
     const margin = grid; // one blank cell of paper around the writing
-    const cols = Math.max(4, Math.floor((width - margin * 2) / grid));
+    // A page is only so wide however big the desk is: past that the writing is centred and the rest is margin.
+    const cols = Math.max(4, Math.floor((Math.min(width, MAX_PAGE) - margin * 2) / grid));
+    const left = Math.round((width - cols * grid) / 2);
     page.style.setProperty('--cell', `${grid}px`);
-    page.style.setProperty('--origin', `${margin}px`);
+    page.style.setProperty('--ox', `${left}px`);
+    page.style.setProperty('--oy', `${margin}px`);
 
     const t0 = performance.now();
     for (const v of views) v.prepare(grid, cols * grid);
@@ -434,7 +469,7 @@ async function main(): Promise<void> {
     for (const v of views) {
       const [cx, cy] = v.el.dataset.cell!.split(',').map(Number);
       // The SVG's viewBox starts PAD before the text origin, so back the element up by PAD to land on the rule.
-      v.el.style.left = `${margin + cx * grid - PAD}px`;
+      v.el.style.left = `${left + cx * grid - PAD}px`;
       v.el.style.top = `${margin + cy * grid - PAD}px`;
     }
     page.style.height = `${(rows + 2) * grid + margin}px`;

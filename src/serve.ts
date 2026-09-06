@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 
 const root = join(process.cwd(), 'dist');
-const types: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.otf': 'font/otf', '.svg': 'image/svg+xml', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css' };
+const types: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.otf': 'font/otf', '.svg': 'image/svg+xml', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.jpeg': 'image/jpeg', '.jpg': 'image/jpeg', '.png': 'image/png' };
 const port = Number(process.env.PORT ?? 4173);
 
 createServer(async (req, res) => {

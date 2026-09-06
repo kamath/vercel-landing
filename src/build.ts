@@ -1,6 +1,7 @@
 // Build NotebookHand-Regular.otf: skeleton -> variants -> outlines -> CFF font + GSUB features.
 
-import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { cpSync, copyFileSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { basename, join } from 'node:path';
 import { build as esbuild } from 'esbuild';
 import opentype from 'opentype.js';
 import { glyphs as defs } from './glyphs.js';
@@ -153,8 +154,37 @@ export function buildGSUBTable(gid: Map<string, number>, built: BuiltGlyph[]): U
   ]);
 }
 
+const IMGS = 'src/site/public/imgs';
+
+/** Pixel size of a JPEG or PNG, straight from its header: enough to give the page every photo's shape up front. */
+function imageSize(file: string): { w: number; h: number } | null {
+  const b = readFileSync(file);
+  if (b.readUInt32BE(0) === 0x89504e47) return { w: b.readUInt32BE(16), h: b.readUInt32BE(20) }; // PNG IHDR
+  if (b.readUInt16BE(0) !== 0xffd8) return null; // not a JPEG either
+  for (let i = 2; i + 9 < b.length; ) {
+    if (b[i] !== 0xff) { i++; continue; } // resynchronise on the next marker
+    const marker = b[i + 1];
+    if (marker === 0xd8 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) { i += 2; continue; } // no payload
+    const len = b.readUInt16BE(i + 2);
+    // SOF0-3, SOF5-7, SOF9-11, SOF13-15 carry the frame size; the other 0xC. markers do not.
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+      return { w: b.readUInt16BE(i + 7), h: b.readUInt16BE(i + 5) };
+    }
+    i += 2 + len;
+  }
+  return null;
+}
+
 /** Bundle the notebook homepage (Pretext-laid-out notes) into dist. */
 export async function buildSite(dir: string): Promise<void> {
+  const aspects: Record<string, number> = {};
+  for (const name of readdirSync(IMGS)) {
+    if (name.startsWith('.')) continue;
+    const size = imageSize(join(IMGS, name));
+    if (size === null) throw new Error(`${name}: not a JPEG or PNG, so the page cannot size it`);
+    aspects[`imgs/${name}`] = size.w / size.h; // full precision: the print is cut to the photo's exact shape
+  }
+
   await esbuild({
     entryPoints: ['src/site/main.ts'],
     bundle: true,
@@ -163,8 +193,11 @@ export async function buildSite(dir: string): Promise<void> {
     outfile: `${dir}/site.js`,
     minify: true,
     logLevel: 'silent',
+    define: { __PHOTO_ASPECTS__: JSON.stringify(aspects) },
   });
   copyFileSync('src/site/index.html', `${dir}/index.html`);
+  // Static assets (the photos) are served from the same paths the page asks for; skip the OS's dotfiles.
+  cpSync('src/site/public', dir, { recursive: true, filter: (src) => !basename(src).startsWith('.') });
 }
 
 export async function buildFont(): Promise<{ bytes: Uint8Array; built: BuiltGlyph[] }> {

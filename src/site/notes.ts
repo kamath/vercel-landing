@@ -20,7 +20,11 @@ export interface NoteItem {
   nowrap?: boolean;
 }
 
-export type Figure = { kind: 'arc'; from: string; to: string } | { kind: 'rocket' };
+export type Figure =
+  | { kind: 'arc'; from: string; to: string }
+  | { kind: 'rocket' }
+  /** A photo stuck onto the page; its shape comes from the file itself, measured at build time. */
+  | { kind: 'photo'; src: string; alt: string };
 
 export interface Note {
   id: string;
@@ -35,14 +39,22 @@ export interface Note {
 }
 
 const L = (text: string, extra: Partial<NoteItem> = {}): NoteItem => ({ text, ...extra });
-const X = (text: string, extra: Partial<NoteItem> = {}): NoteItem => ({ text, strike: true, ...extra });
 const SUB = (text: string, extra: Partial<NoteItem> = {}): NoteItem => ({ text, hang: 1, ...extra });
 const link = (text: string, href: string) => ({ text, href });
+
+/** A photo from `public/imgs`. `em` sets how wide the print is, the way `em` sizes every other section. */
+const PHOTO = (id: string, src: string, alt: string, em: number): Note => ({
+  id,
+  items: [],
+  figure: { kind: 'photo', src: `imgs/${src}`, alt },
+  em,
+});
 
 export const notes: Note[] = [
   { id: 'date', items: [L('09/05/2026')], em: 8 },
   { id: 'name', items: [L('Anirudh Kamath', { size: 1.25 })], em: 14 },
   { id: 'flight', items: [], figure: { kind: 'arc', from: 'SF', to: 'NYC' }, em: 12 },
+  PHOTO('p-bieber', 'bieber.jpeg', 'Fireworks over the stage at a Justin Bieber concert', 9),
   {
     id: 'now',
     items: [
@@ -52,6 +64,7 @@ export const notes: Note[] = [
     ],
     em: 17,
   },
+  PHOTO('p-wall', 'great_wall.jpeg', 'The Great Wall running along the ridgeline north of Beijing', 8),
   {
     id: 'before',
     items: [
@@ -64,8 +77,10 @@ export const notes: Note[] = [
         links: [link('Whatnot', 'https://www.whatnot.com')],
       }),
     ],
-    em: 21,
+    em: 18,
   },
+  PHOTO('p-halfdome', 'half_dome.jpeg', 'Looking down the face of Half Dome into Yosemite Valley', 8),
+  PHOTO('p-shivani', 'me_and_shivani.jpeg', 'Shivani and me on the steps of Wat Arun, Bangkok', 7),
   {
     id: 'abbrev',
     items: [L('"great abbreviators"', { href: 'https://www.goodreads.com/quotes/754134-we-are-all-as-huxley-says-someplace-great-abbreviators-meaning' })],
@@ -73,6 +88,7 @@ export const notes: Note[] = [
     em: 14,
   },
   { id: 'rocket', items: [], figure: { kind: 'rocket' }, em: 6 },
+  PHOTO('p-kofta', 'malai_kofta.jpeg', 'A heart-shaped malai kofta in a black bowl, sauced and topped with an edible flower', 7),
   {
     id: 'links',
     items: [
@@ -82,5 +98,4 @@ export const notes: Note[] = [
     ],
     em: 9,
   },
-  { id: 'todo', items: [X('- make a website'), X('- ship it'), L('- profit')], em: 10 },
 ];
