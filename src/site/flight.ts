@@ -308,13 +308,15 @@ export function drawFlight(
   const fly1: Win = [0, FLY];
   let nycDraw: Win = [FLY, FLY + NYC_DRAW];
   let meetNYC = FLY;
+  let capNYC = 1; // fraction of the arc the outbound line is allowed to reveal (it stops at the crossing)
   const hits = city.shapes
     .map((shape, i) => ({ i, hit: firstCrossing(arcGeom, measured(shift(shape, nycOrigin.x, nycOrigin.y))) }))
     .filter((c) => c.hit !== null)
     .sort((a, b) => a.hit!.alongA - b.hit!.alongA);
   if (hits.length > 0) {
     const { i, hit } = hits[0];
-    meetNYC = fly1[0] + FLY * easeInv(hit!.alongA / arcLen); // when the dotted tip gets there
+    capNYC = hit!.alongA / arcLen;
+    meetNYC = fly1[0] + FLY * easeInv(capNYC); // when the line's tip gets there
     const strokeLen = measured(city.shapes[i]).len;
     const win = staggered([0, NYC_DRAW], i, city.shapes.length); // building i's window, relative to the draw start
     const reach = win[0] + (win[1] - win[0]) * easeInv(hit!.alongB / strokeLen); // when its pen gets there
@@ -326,9 +328,11 @@ export function drawFlight(
   const fly2: Win = [nycUndraw[1], nycUndraw[1] + FLY]; // sets off once the skyline is fully gone
   let sfDraw: Win = [fly2[1], fly2[1] + SF_DRAW];
   let meetSF = fly2[1];
+  let capSF = 1;
   const cableHit = firstCrossing(measured([...arcPts].reverse()), measured(shift(bridge.cable, sfOrigin.x, sfOrigin.y)));
   if (cableHit) {
-    meetSF = fly2[0] + FLY * easeInv(cableHit.alongA / arcLen);
+    capSF = cableHit.alongA / arcLen;
+    meetSF = fly2[0] + FLY * easeInv(capSF);
     const cableLen = measured(bridge.cable).len;
     const archWin: Win = [SF_DRAW * 0.5, SF_DRAW]; // relative to the bridge's draw start
     const reach = archWin[0] + (archWin[1] - archWin[0]) * easeInv(cableHit.alongB / cableLen);
@@ -354,12 +358,12 @@ export function drawFlight(
   const frame = (now: number) => {
     const t = ((now - start) / 1000) % period;
     frames++;
-    // The line draws itself out from SF, later back from NYC.
+    // The line draws itself out from SF, later back from NYC, and stops where it meets the city's ink.
     let offset: number;
-    if (t < fly1[1]) offset = arcLen * (1 - ease(between(t, fly1)));
-    else if (t < fly2[0]) offset = 0;
-    else if (t < fly2[1]) offset = -arcLen * (1 - ease(between(t, fly2))); // negative: revealed from the NYC end
-    else offset = 0;
+    if (t < fly1[1]) offset = arcLen * (1 - Math.min(capNYC, ease(between(t, fly1))));
+    else if (t < fly2[0]) offset = arcLen * (1 - capNYC);
+    else if (t < fly2[1]) offset = -arcLen * (1 - Math.min(capSF, ease(between(t, fly2)))); // negative: revealed from the NYC end
+    else offset = -arcLen * (1 - capSF);
     reveal.style.strokeDashoffset = `${offset}`;
     const nycFade = drawingOpacity(t, nycDraw, nycUndraw, period);
     const sfFade = drawingOpacity(t, sfDraw, sfUndraw, period);
