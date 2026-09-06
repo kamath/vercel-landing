@@ -4,7 +4,7 @@
 
 import { ink, svgEl, wobbly, type XY } from './doodle.js';
 
-const PERIOD = 11.8; // seconds per round trip
+const PERIOD = 12.3; // seconds per round trip
 
 // Timeline in seconds. A city starts drawing once the line has finished arriving, holds, and fades as the line sets off again.
 const T = {
@@ -13,7 +13,7 @@ const T = {
   nycDraw: [3.6, 4.7],
   nycUndraw: [5.9, 6.6],
   fly2: [5.9, 9.5],
-  sfDraw: [9.5, 10.6],
+  sfDraw: [9.5, 11.1],
 } as const;
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
@@ -38,10 +38,10 @@ interface Stroke {
 }
 
 /** Give a group of strokes staggered draw windows (left to right); they all stay inked until the shared undraw window ends. */
-function schedule(els: SVGPathElement[], draw: readonly [number, number], undraw: readonly [number, number]): Stroke[] {
+function schedule(els: SVGPathElement[], draw: readonly [number, number], undraw: readonly [number, number], share = 0.5): Stroke[] {
   const n = els.length;
-  const per = (draw[1] - draw[0]) * 0.5;
-  const step = n > 1 ? ((draw[1] - draw[0]) * 0.5) / (n - 1) : 0;
+  const per = (draw[1] - draw[0]) * share;
+  const step = n > 1 ? ((draw[1] - draw[0]) * (1 - share)) / (n - 1) : 0;
   return els.map((el, i) => {
     const len = el.getTotalLength();
     el.style.strokeDasharray = `${len}`;
@@ -112,8 +112,8 @@ function solid(el: SVGPathElement): SVGPathElement {
 }
 
 /**
- * The Golden Gate, drawn the way a hand would: water first, then the poles (two towers and a few
- * verticals), then the cable arch over everything. A paper-filled silhouette beneath hides the arc.
+ * The Golden Gate, drawn the way a hand would: the poles (two towers and a few verticals) from the top down,
+ * then the water, then one unhurried cable arch over everything. A paper-filled silhouette beneath hides the arc.
  * Box `W` x `H`, standing on y = 0.
  */
 function goldenGate(W: number, H: number, seed: string): { fill: SVGPathElement; water: SVGPathElement[]; poles: SVGPathElement[]; arch: SVGPathElement[] } {
@@ -138,7 +138,7 @@ function goldenGate(W: number, H: number, seed: string): { fill: SVGPathElement;
   fill.style.fillOpacity = '0';
   const water = [ink(wobbly(wave, `${seed}:water`, 0.4, 5), 1.6)];
   const pole = (x: number, top: number, width: number, key: string) =>
-    ink(wobbly([{ x, y: waterY }, { x, y: top }], `${seed}:${key}`, 0.35, 5), width);
+    ink(wobbly([{ x, y: top }, { x, y: waterY }], `${seed}:${key}`, 0.35, 5), width); // top down, as a hand does
   // A scribbler draws the two towers and a handful of verticals, not every cable.
   const poles = [
     pole(W * 0.15, cableAt(W * 0.15), 1.2, 's0'),
@@ -221,9 +221,9 @@ export function drawFlight(
   const phase = (a: number, b: number, [d0, d1]: readonly [number, number]): [number, number] => [d0 + (d1 - d0) * a, d0 + (d1 - d0) * b];
   const nycInk = schedule(nycStrokes, T.nycDraw, T.nycUndraw);
   const sfInk = [
-    ...schedule(bridge.water, phase(0, 0.2, T.sfDraw), T.sfUndraw),
-    ...schedule(bridge.poles, phase(0.18, 0.72, T.sfDraw), T.sfUndraw),
-    ...schedule(bridge.arch, phase(0.7, 1, T.sfDraw), T.sfUndraw),
+    ...schedule(bridge.poles, phase(0, 0.4, T.sfDraw), T.sfUndraw),
+    ...schedule(bridge.water, phase(0.38, 0.52, T.sfDraw), T.sfUndraw, 1),
+    ...schedule(bridge.arch, phase(0.5, 1, T.sfDraw), T.sfUndraw, 1),
   ];
   const MARCH = 45; // px per second the dashes travel, three dash-plus-gap periods per second
   let start = performance.now();
