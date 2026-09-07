@@ -547,8 +547,9 @@ async function main(): Promise<void> {
   const addDoodle = (x: number, y: number) => {
     const { grid, left, margin } = geometry;
     if (grid === 0) return;
-    const n = doodled++;
-    const view = new NoteView({ id: `doodle-${n}`, items: [], figure: { kind: SKETCHES[Math.floor(Math.random() * SKETCHES.length)] }, em: 3, pin: { col: Math.floor((x - left) / grid), row: Math.floor((y - margin) / grid) } });
+    // The id seeds the drawing, so it carries a random tag: no two doodles, on this page or the next, are drawn alike.
+    const id = `doodle-${doodled++}-${Math.random().toString(36).slice(2, 8)}`;
+    const view = new NoteView({ id, items: [], figure: { kind: SKETCHES[Math.floor(Math.random() * SKETCHES.length)] }, em: 3, pin: { col: Math.floor((x - left) / grid), row: Math.floor((y - margin) / grid) } });
     view.fresh = true;
     view.el.style.left = `${x}px`; // starts under the pointer and slides onto the grid
     view.el.style.top = `${y}px`;
