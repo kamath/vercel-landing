@@ -452,15 +452,21 @@ class Paper {
 function pack(views: NoteView[], cols: number, grid: number): number {
   const paper = new Paper(cols);
   const available = cols * grid;
-  // Pinned doodles go down first, each centred on the cell it was put on (or the nearest free one), so the
-  // written sections then flow around them like around anything else already on the page.
-  for (const v of views) {
+  // Pinned doodles go down first, newest first: the one just put on the page lands on the cell it was put on, and
+  // each earlier one is re-seated as close as it can get to where it last sat, so it moves out of the way of a newer
+  // doodle the way the writing does. The written sections then flow around them all.
+  for (const v of [...views].reverse()) {
     const pin = v.note.pin;
     if (!pin) continue;
     v.layout(v.preferredWidth(available));
-    const spot = paper.near(v.cols, v.rows, pin.col - Math.floor((v.cols - GUTTER_COLS) / 2), pin.row - Math.floor((v.rows - GUTTER_ROWS) / 2));
+    const dx = Math.floor((v.cols - GUTTER_COLS) / 2);
+    const dy = Math.floor((v.rows - GUTTER_ROWS) / 2);
+    const spot = paper.near(v.cols, v.rows, pin.col - dx, pin.row - dy);
     paper.place(spot.x, spot.y, v.cols, v.rows);
     v.el.dataset.cell = `${spot.x},${spot.y}`;
+    // Remember where it ended up, not where it was asked for: the next layout keeps it near there.
+    pin.col = spot.x + dx;
+    pin.row = spot.y + dy;
   }
   for (const v of views) {
     if (v.note.pin) continue;
